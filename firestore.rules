@@ -1,0 +1,53 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    function isTutor() {
+      return isAuthenticated() && getUserData().role == 'tutor';
+    }
+    
+    function isParent() {
+      return isAuthenticated() && getUserData().role == 'parent';
+    }
+    
+    function isParentOf(studentId) {
+      return isParent() && getUserData().studentId == studentId;
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      allow read, write: if isAuthenticated() && (request.auth.uid == userId || isTutor());
+    }
+
+    // Students Collection
+    match /students/{studentId} {
+      // Tutor can read and write all students
+      allow read, write: if isTutor();
+      
+      // Parents can ONLY read their own child's record
+      allow read: if isParentOf(studentId);
+      allow write: if false; // Parents can never edit student profiles
+    }
+
+    // Attendance Collection
+    match /attendance/{attendanceId} {
+      // Tutor can read, create, and update attendance
+      allow read, write: if isTutor();
+      
+      // Parents can ONLY read attendance belonging to their child
+      allow read: if isParentOf(resource.data.studentId);
+      
+      // Parents can NEVER create, update, or delete attendance
+      allow create, update, delete: if false;
+    }
+  }
+}
