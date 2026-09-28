@@ -96,7 +96,7 @@ class DynamicSyncButton extends StatelessWidget {
             ),
             SizedBox(width: 10),
             Text(
-              '⟳ Syncing...',
+              'Syncing...',
               style: TextStyle(
                 fontSize: 13.5,
                 fontWeight: FontWeight.w700,
@@ -138,7 +138,7 @@ class DynamicSyncButton extends StatelessWidget {
                 const Icon(Icons.sync_rounded, color: Colors.white, size: 18),
                 const SizedBox(width: 8),
                 Text(
-                  '🔄 Pending to Sync ($pendingCount)',
+                  'Pending to Sync ($pendingCount)',
                   style: const TextStyle(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w800,
@@ -175,7 +175,7 @@ class DynamicSyncButton extends StatelessWidget {
                 Icon(Icons.warning_amber_rounded, color: AppColors.absentRed, size: 18),
                 SizedBox(width: 8),
                 Text(
-                  '⚠ Sync Failed (Tap to Retry)',
+                  'Sync Failed (Tap to Retry)',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
@@ -210,7 +210,7 @@ class DynamicSyncButton extends StatelessWidget {
               Icon(Icons.check_circle_rounded, color: Color(0xFF059669), size: 18),
               SizedBox(width: 8),
               Text(
-                '✓ Updated',
+                'Updated',
                 style: TextStyle(
                   fontSize: 13.5,
                   fontWeight: FontWeight.w800,

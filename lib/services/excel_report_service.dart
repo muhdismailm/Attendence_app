@@ -103,27 +103,32 @@ class ExcelReportService {
 
     final regularStyle = CellStyle(
       horizontalAlign: HorizontalAlign.Left,
+      verticalAlign: VerticalAlign.Center,
     );
 
     final centerStyle = CellStyle(
       horizontalAlign: HorizontalAlign.Center,
+      verticalAlign: VerticalAlign.Center,
     );
 
     for (final student in students) {
+      final morningRow = currentRow;
+      final eveningRow = currentRow + 1;
+
+      // Col 0: Roll No (set once on top row of merged pair)
+      final rollCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: morningRow));
+      rollCell.value = TextCellValue(student.rollNumber.padLeft(2, '0'));
+      rollCell.cellStyle = centerStyle;
+
+      // Col 1: Student Name (set once on top row of merged pair)
+      final nameCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: morningRow));
+      nameCell.value = TextCellValue(student.name);
+      nameCell.cellStyle = regularStyle;
+
       for (final session in ['Morning', 'Evening']) {
         final sessionLower = session.toLowerCase();
         int presentCount = 0;
         int absentCount = 0;
-
-        // Col 0: Roll No
-        final rollCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow));
-        rollCell.value = TextCellValue(student.rollNumber.padLeft(2, '0'));
-        rollCell.cellStyle = centerStyle;
-
-        // Col 1: Student Name
-        final nameCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: currentRow));
-        nameCell.value = TextCellValue(student.name);
-        nameCell.cellStyle = regularStyle;
 
         // Col 2: Timing
         final timingCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: currentRow));
@@ -182,6 +187,16 @@ class ExcelReportService {
 
         currentRow++;
       }
+
+      // Merge Morning & Evening rows for Roll No and Student Name columns
+      sheet.merge(
+        CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: morningRow),
+        CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: eveningRow),
+      );
+      sheet.merge(
+        CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: morningRow),
+        CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: eveningRow),
+      );
     }
 
     // Auto fit column widths roughly

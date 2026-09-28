@@ -71,36 +71,6 @@ class SyncStatusCard extends StatelessWidget {
             ],
           ),
 
-          const SizedBox(height: 14),
-
-          // Informational pill
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceMuted,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.borderLight),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.shield_outlined, size: 16, color: AppColors.primaryBlue),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    pendingCount > 0
-                        ? '$pendingCount record(s) stored locally on this device, waiting for sync.'
-                        : 'All offline attendance records are synchronized with Firestore.',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textDark,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
           if (syncError != null && !isSyncing) ...[
             const SizedBox(height: 10),
             Container(

@@ -220,26 +220,6 @@ class _TutorReportsScreenState extends State<TutorReportsScreen> with SingleTick
         backgroundColor: AppColors.headerGradientStart,
         foregroundColor: Colors.white,
         elevation: 0,
-        actions: [
-          if (_isExporting)
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
-            )
-          else
-            TextButton.icon(
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.white,
-                backgroundColor: const Color(0xFF107C41), // Excel green
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              icon: const Icon(Icons.file_download_outlined, size: 18),
-              label: const Text('Excel', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-              onPressed: () => _exportExcel(students, attendanceMap),
-            ),
-          const SizedBox(width: 12),
-        ],
       ),
       body: Column(
         children: [
@@ -403,20 +383,25 @@ class _TutorReportsScreenState extends State<TutorReportsScreen> with SingleTick
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '$monthTitle — $teamLabel',
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.textDark),
-                    ),
-                    const SizedBox(height: 2),
-                    const Text(
-                      'Morning & Evening sessions for Days 1 to 30/31',
-                      style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                    ),
-                  ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '$monthTitle — $teamLabel',
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.textDark),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'Morning & Evening sessions for Days 1 to 30/31',
+                        style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF107C41),
@@ -425,9 +410,18 @@ class _TutorReportsScreenState extends State<TutorReportsScreen> with SingleTick
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
-                  icon: const Icon(Icons.download_rounded, size: 16),
-                  label: const Text('Export .xlsx', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                  onPressed: () => _exportExcel(students, attendanceMap),
+                  icon: _isExporting
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(Icons.download_rounded, size: 16),
+                  label: Text(
+                    _isExporting ? 'Exporting...' : 'Export .xlsx',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                  ),
+                  onPressed: _isExporting ? null : () => _exportExcel(students, attendanceMap),
                 ),
               ],
             ),
@@ -458,16 +452,18 @@ class _TutorReportsScreenState extends State<TutorReportsScreen> with SingleTick
                     const DataColumn(label: Text('Timing')),
                     for (int d = 1; d <= daysInMonth; d++)
                       DataColumn(
-                        label: Center(
+                        label: SizedBox(
+                          width: 28,
                           child: Text(
                             d.toString(),
+                            textAlign: TextAlign.center,
                             style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
                         ),
                       ),
-                    const DataColumn(label: Text('Total P')),
-                    const DataColumn(label: Text('Total A')),
-                    const DataColumn(label: Text('Att %')),
+                    const DataColumn(label: SizedBox(width: 44, child: Text('Total P', textAlign: TextAlign.center))),
+                    const DataColumn(label: SizedBox(width: 44, child: Text('Total A', textAlign: TextAlign.center))),
+                    const DataColumn(label: SizedBox(width: 44, child: Text('Att %', textAlign: TextAlign.center))),
                   ],
                   rows: _buildTableRows(students, attendanceMap, daysInMonth),
                 ),
@@ -482,14 +478,17 @@ class _TutorReportsScreenState extends State<TutorReportsScreen> with SingleTick
               color: Color(0xFFF8FAFC),
               border: Border(top: BorderSide(color: AppColors.borderLight)),
             ),
-            child: Row(
-              children: [
-                _buildLegendItem(Icons.check_circle_rounded, '✔ Present (P)', AppColors.presentGreen),
-                const SizedBox(width: 16),
-                _buildLegendItem(Icons.cancel_rounded, '✘ Absent (A)', AppColors.absentRed),
-                const SizedBox(width: 16),
-                _buildLegendItem(Icons.remove_rounded, '- Not Marked', AppColors.textMuted),
-              ],
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildLegendItem(Icons.check_circle_rounded, '✔ Present (P)', AppColors.presentGreen),
+                  const SizedBox(width: 16),
+                  _buildLegendItem(Icons.cancel_rounded, '✘ Absent (A)', AppColors.absentRed),
+                  const SizedBox(width: 16),
+                  _buildLegendItem(Icons.remove_rounded, '- Not Marked', AppColors.textMuted),
+                ],
+              ),
             ),
           ),
         ],
@@ -541,16 +540,19 @@ class _TutorReportsScreenState extends State<TutorReportsScreen> with SingleTick
               presentCount++;
               dayCells.add(
                 DataCell(
-                  Center(
-                    child: Container(
-                      width: 24,
-                      height: 24,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: AppColors.presentLightBg,
-                        borderRadius: BorderRadius.circular(4),
+                  SizedBox(
+                    width: 28,
+                    child: Center(
+                      child: Container(
+                        width: 22,
+                        height: 22,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: AppColors.presentLightBg,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text('✔', style: TextStyle(color: AppColors.presentGreen, fontWeight: FontWeight.w900, fontSize: 11)),
                       ),
-                      child: const Text('✔', style: TextStyle(color: AppColors.presentGreen, fontWeight: FontWeight.w900, fontSize: 12)),
                     ),
                   ),
                 ),
@@ -559,16 +561,19 @@ class _TutorReportsScreenState extends State<TutorReportsScreen> with SingleTick
               absentCount++;
               dayCells.add(
                 DataCell(
-                  Center(
-                    child: Container(
-                      width: 24,
-                      height: 24,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: AppColors.absentLightBg,
-                        borderRadius: BorderRadius.circular(4),
+                  SizedBox(
+                    width: 28,
+                    child: Center(
+                      child: Container(
+                        width: 22,
+                        height: 22,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: AppColors.absentLightBg,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text('✘', style: TextStyle(color: AppColors.absentRed, fontWeight: FontWeight.w900, fontSize: 11)),
                       ),
-                      child: const Text('✘', style: TextStyle(color: AppColors.absentRed, fontWeight: FontWeight.w900, fontSize: 12)),
                     ),
                   ),
                 ),
@@ -577,8 +582,11 @@ class _TutorReportsScreenState extends State<TutorReportsScreen> with SingleTick
           } else {
             dayCells.add(
               const DataCell(
-                Center(
-                  child: Text('-', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                SizedBox(
+                  width: 28,
+                  child: Center(
+                    child: Text('-', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                  ),
                 ),
               ),
             );
@@ -592,19 +600,19 @@ class _TutorReportsScreenState extends State<TutorReportsScreen> with SingleTick
           DataRow(
             color: WidgetStateProperty.all(studentBg),
             cells: [
-              // Roll No
+              // Roll No (shown once for Morning, empty for Evening)
               DataCell(
                 Center(
                   child: Text(
-                    student.rollNumber.padLeft(2, '0'),
+                    isMorning ? student.rollNumber.padLeft(2, '0') : '',
                     style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
                   ),
                 ),
               ),
-              // Name
+              // Name (shown once for Morning, empty for Evening)
               DataCell(
                 Text(
-                  student.name,
+                  isMorning ? student.name : '',
                   style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: AppColors.textDark),
                 ),
               ),
@@ -629,22 +637,25 @@ class _TutorReportsScreenState extends State<TutorReportsScreen> with SingleTick
               // Day columns
               ...dayCells,
               // Summary
-              DataCell(Center(child: Text(presentCount.toString(), style: const TextStyle(color: AppColors.presentGreen, fontWeight: FontWeight.w700)))),
-              DataCell(Center(child: Text(absentCount.toString(), style: const TextStyle(color: AppColors.absentRed, fontWeight: FontWeight.w700)))),
+              DataCell(SizedBox(width: 44, child: Center(child: Text(presentCount.toString(), style: const TextStyle(color: AppColors.presentGreen, fontWeight: FontWeight.w700))))),
+              DataCell(SizedBox(width: 44, child: Center(child: Text(absentCount.toString(), style: const TextStyle(color: AppColors.absentRed, fontWeight: FontWeight.w700))))),
               DataCell(
-                Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: (int.tryParse(pct) ?? 0) >= 75 ? AppColors.presentLightBg : AppColors.absentLightBg,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      '$pct%',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: (int.tryParse(pct) ?? 0) >= 75 ? AppColors.presentGreen : AppColors.absentRed,
+                SizedBox(
+                  width: 44,
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: (int.tryParse(pct) ?? 0) >= 75 ? AppColors.presentLightBg : AppColors.absentLightBg,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        '$pct%',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: (int.tryParse(pct) ?? 0) >= 75 ? AppColors.presentGreen : AppColors.absentRed,
+                        ),
                       ),
                     ),
                   ),
@@ -752,14 +763,19 @@ class _TutorReportsScreenState extends State<TutorReportsScreen> with SingleTick
                             Text(
                               student.name,
                               style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textDark),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                             Text(
                               '${student.teamDisplayName} • Parent: ${student.parentName}',
                               style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
                       ),
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
@@ -794,7 +810,22 @@ class _TutorReportsScreenState extends State<TutorReportsScreen> with SingleTick
                             children: [
                               const Text('Morning Session', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFFB45309))),
                               const SizedBox(height: 4),
-                              Text('$morningP Present • $morningA Absent', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textDark)),
+                              Wrap(
+                                spacing: 4,
+                                runSpacing: 2,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Text(
+                                    '$morningP Present',
+                                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.presentGreen),
+                                  ),
+                                  const Text('•', style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                                  Text(
+                                    '$morningA Absent',
+                                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.absentRed),
+                                  ),
+                                ],
+                              ),
                             ],
                           ),
                         ),
@@ -812,7 +843,22 @@ class _TutorReportsScreenState extends State<TutorReportsScreen> with SingleTick
                             children: [
                               const Text('Evening Session', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF6D28D9))),
                               const SizedBox(height: 4),
-                              Text('$eveningP Present • $eveningA Absent', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textDark)),
+                              Wrap(
+                                spacing: 4,
+                                runSpacing: 2,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Text(
+                                    '$eveningP Present',
+                                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.presentGreen),
+                                  ),
+                                  const Text('•', style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                                  Text(
+                                    '$eveningA Absent',
+                                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.absentRed),
+                                  ),
+                                ],
+                              ),
                             ],
                           ),
                         ),

@@ -31,15 +31,19 @@ class StatsSummaryCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textDark,
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textDark,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              if (percentage != null)
+              if (percentage != null) ...[
+                const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
@@ -55,6 +59,7 @@ class StatsSummaryCard extends StatelessWidget {
                     ),
                   ),
                 ),
+              ],
             ],
           ),
           if (subtitle != null) ...[
@@ -65,6 +70,8 @@ class StatsSummaryCard extends StatelessWidget {
                 fontSize: 12,
                 color: AppColors.textSecondary,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
           const SizedBox(height: 14),
@@ -73,99 +80,105 @@ class StatsSummaryCard extends StatelessWidget {
               // Present Stat Box
               Expanded(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
                   decoration: BoxDecoration(
-                    color: AppColors.presentLightBg.withOpacity(0.5),
+                    color: AppColors.presentLightBg.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.presentBorder.withOpacity(0.5)),
+                    border: Border.all(color: AppColors.presentBorder.withValues(alpha: 0.5)),
                   ),
                   child: Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(6),
+                        padding: const EdgeInsets.all(5),
                         decoration: BoxDecoration(
                           color: AppColors.presentGreen,
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Icon(Icons.check, color: Colors.white, size: 16),
+                        child: const Icon(Icons.check, color: Colors.white, size: 15),
                       ),
-                      const SizedBox(width: 10),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '$presentCount',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.presentGreen,
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '$presentCount',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.presentGreen,
+                              ),
                             ),
-                          ),
-                          const Text(
-                            'Present',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary,
+                            const Text(
+                              'Present',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textSecondary,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ],
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               // Absent Stat Box
               Expanded(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
                   decoration: BoxDecoration(
-                    color: AppColors.absentLightBg.withOpacity(0.5),
+                    color: AppColors.absentLightBg.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.absentBorder.withOpacity(0.5)),
+                    border: Border.all(color: AppColors.absentBorder.withValues(alpha: 0.5)),
                   ),
                   child: Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(6),
+                        padding: const EdgeInsets.all(5),
                         decoration: BoxDecoration(
                           color: AppColors.absentRed,
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Icon(Icons.close, color: Colors.white, size: 16),
+                        child: const Icon(Icons.close, color: Colors.white, size: 15),
                       ),
-                      const SizedBox(width: 10),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '$absentCount',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.absentRed,
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '$absentCount',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.absentRed,
+                              ),
                             ),
-                          ),
-                          const Text(
-                            'Absent',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary,
+                            const Text(
+                              'Absent',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textSecondary,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ],
                   ),
                 ),
               ),
               if (totalCount != null) ...[
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
                     decoration: BoxDecoration(
                       color: AppColors.surfaceMuted,
                       borderRadius: BorderRadius.circular(10),
@@ -177,7 +190,7 @@ class StatsSummaryCard extends StatelessWidget {
                         Text(
                           '$totalCount',
                           style: const TextStyle(
-                            fontSize: 18,
+                            fontSize: 16,
                             fontWeight: FontWeight.w800,
                             color: AppColors.textDark,
                           ),
@@ -189,6 +202,7 @@ class StatsSummaryCard extends StatelessWidget {
                             fontWeight: FontWeight.w600,
                             color: AppColors.textSecondary,
                           ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),

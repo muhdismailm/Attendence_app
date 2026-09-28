@@ -99,7 +99,7 @@ class TutorHomeScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           const Text(
-                            'Create teams from your Profile or Team Management console.',
+                            'Create teams from the Full Team Management Console in your Profile.',
                             textAlign: TextAlign.center,
                             style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
                           ),

@@ -306,8 +306,8 @@ class _ManageTeamsScreenState extends State<ManageTeamsScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text(
-          'Manage Teams',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+          'Full Team Management Console',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 18),
         ),
         backgroundColor: AppColors.headerGradientStart,
         foregroundColor: Colors.white,
@@ -339,7 +339,7 @@ class _ManageTeamsScreenState extends State<ManageTeamsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'Active Teams & Batches',
+                            'Team Management Systems',
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w800,
