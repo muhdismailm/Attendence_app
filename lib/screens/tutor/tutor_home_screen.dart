@@ -23,9 +23,7 @@ class TutorHomeScreen extends StatelessWidget {
     final int presentCount = todayStats['present'] ?? 0;
     final int absentCount = todayStats['absent'] ?? 0;
 
-    // Total student count for each team (each student attends both morning and evening)
-    final int t1Count = studentProv.getTeamTotalStudentCount('team1');
-    final int t2Count = studentProv.getTeamTotalStudentCount('team2');
+    final teams = studentProv.teams;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -82,34 +80,58 @@ class TutorHomeScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
 
-                  // Team 1 Card
-                  TeamCard(
-                    team: 'team1',
-                    totalStudents: t1Count,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const TeamClassesScreen(team: 'team1'),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 14),
+                  if (teams.isEmpty)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppColors.borderLight),
+                      ),
+                      child: Column(
+                        children: [
+                          const Icon(Icons.group_off_rounded, size: 44, color: AppColors.textSecondary),
+                          const SizedBox(height: 10),
+                          const Text(
+                            'No Teams Found',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textDark),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Create teams from your Profile or Team Management console.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: teams.length,
+                      separatorBuilder: (context, index) => const SizedBox(height: 14),
+                      itemBuilder: (context, index) {
+                        final team = teams[index];
+                        final count = studentProv.getTeamTotalStudentCount(team.id);
 
-                  // Team 2 Card
-                  TeamCard(
-                    team: 'team2',
-                    totalStudents: t2Count,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const TeamClassesScreen(team: 'team2'),
-                        ),
-                      );
-                    },
-                  ),
+                        return TeamCard(
+                          team: team.id,
+                          teamDisplayName: team.name,
+                          totalStudents: count,
+                          index: index,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => TeamClassesScreen(team: team.id),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
                   const SizedBox(height: 24),
                 ],
               ),

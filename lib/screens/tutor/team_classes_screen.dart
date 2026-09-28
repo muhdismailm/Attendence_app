@@ -13,12 +13,10 @@ class TeamClassesScreen extends StatelessWidget {
     required this.team,
   });
 
-  bool get isTeam1 => team.toLowerCase() == 'team1';
-  String get teamDisplayName => isTeam1 ? 'Team 1' : 'Team 2';
-
   @override
   Widget build(BuildContext context) {
     final studentProv = context.watch<StudentProvider>();
+    final teamDisplayName = studentProv.getTeamName(team);
     final totalStudents = studentProv.getTeamTotalStudentCount(team);
     final morningCount = totalStudents;
     final eveningCount = totalStudents;

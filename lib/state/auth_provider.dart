@@ -88,6 +88,11 @@ class AuthProvider extends ChangeNotifier {
     _errorMessage = null;
   }
 
+  bool verifyPin(String pin) {
+    if (_currentUser == null) return false;
+    return _currentUser!.pin.trim() == pin.trim();
+  }
+
   void clearError() {
     _clearError();
     notifyListeners();

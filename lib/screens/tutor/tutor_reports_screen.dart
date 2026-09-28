@@ -50,9 +50,10 @@ class _TutorReportsScreenState extends State<TutorReportsScreen> with SingleTick
   Future<void> _exportExcel(List<Student> students, Map<String, AttendanceRecord> attendanceMap) async {
     setState(() => _isExporting = true);
     try {
+      final studentProv = context.read<StudentProvider>();
       final teamLabel = _selectedTeam == 'all'
           ? 'All Teams'
-          : (_selectedTeam == 'team1' ? 'Team 1' : 'Team 2');
+          : studentProv.getTeamName(_selectedTeam);
 
       final file = await ExcelReportService.generateMonthlyAttendanceExcel(
         students: students,
@@ -280,14 +281,23 @@ class _TutorReportsScreenState extends State<TutorReportsScreen> with SingleTick
                 const SizedBox(height: 8),
 
                 // Team Filter Chips
-                Row(
-                  children: [
-                    _buildTeamChip('All Teams', 'all'),
-                    const SizedBox(width: 8),
-                    _buildTeamChip('Team 1', 'team1'),
-                    const SizedBox(width: 8),
-                    _buildTeamChip('Team 2', 'team2'),
-                  ],
+                Consumer<StudentProvider>(
+                  builder: (context, studentProv, _) {
+                    return SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _buildTeamChip('All Teams', 'all'),
+                          ...studentProv.teams.map((t) {
+                            return Padding(
+                              padding: const EdgeInsets.only(left: 8.0),
+                              child: _buildTeamChip(t.name, t.id),
+                            );
+                          }),
+                        ],
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 12),
 

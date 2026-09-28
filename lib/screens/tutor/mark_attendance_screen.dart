@@ -76,21 +76,26 @@ class _MarkAttendanceScreenState extends State<MarkAttendanceScreen> {
     if (!mounted) return;
 
     if (success) {
+      final isPending = attProv.pendingSyncCount > 0;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
             children: [
               const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
               const SizedBox(width: 10),
-              Text(
-                'Attendance saved successfully for ${attProv.selectedDateDisplay}',
-                style: const TextStyle(fontWeight: FontWeight.w600),
+              Expanded(
+                child: Text(
+                  isPending
+                      ? 'Attendance saved locally (${attProv.selectedDateDisplay}). Sync will run automatically.'
+                      : 'Attendance saved and synced successfully for ${attProv.selectedDateDisplay}',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
               ),
             ],
           ),
           backgroundColor: AppColors.presentGreen,
           behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
+          duration: const Duration(seconds: 3),
         ),
       );
     } else {
@@ -110,7 +115,7 @@ class _MarkAttendanceScreenState extends State<MarkAttendanceScreen> {
     final attProv = context.watch<AttendanceProvider>();
 
     final groupStudents = studentProv.getStudentsForGroup(widget.team, widget.timing);
-    final teamTitle = widget.team.toLowerCase() == 'team1' ? 'Team 1' : 'Team 2';
+    final teamTitle = studentProv.getTeamName(widget.team);
     final timingTitle = widget.timing.toLowerCase() == 'morning' ? 'Morning' : 'Evening';
     final groupTitle = '$teamTitle • $timingTitle';
 

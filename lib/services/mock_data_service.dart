@@ -1,9 +1,25 @@
 import '../models/user_model.dart';
 import '../models/student_model.dart';
 import '../models/attendance_model.dart';
+import '../models/team_model.dart';
 import 'package:intl/intl.dart';
 
 class MockDataService {
+  static final List<Team> initialTeams = [
+    Team(
+      id: 'team1',
+      name: 'Team 1',
+      description: 'Morning & Evening Batch 1',
+      createdAt: DateTime(2026, 1, 1),
+    ),
+    Team(
+      id: 'team2',
+      name: 'Team 2',
+      description: 'Morning & Evening Batch 2',
+      createdAt: DateTime(2026, 1, 1),
+    ),
+  ];
+
   static final List<AppUser> initialUsers = [
     const AppUser(
       id: 'tutor_01',

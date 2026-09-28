@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import '../models/student_model.dart';
+import '../models/team_model.dart';
 import '../services/database_service.dart';
 
 class StudentProvider extends ChangeNotifier {
   final DatabaseService _dbService;
 
   String _searchQuery = '';
-  String _selectedTeamFilter = 'all'; // 'all', 'team1', 'team2'
+  String _selectedTeamFilter = 'all'; // 'all' or team id
   String _selectedTimingFilter = 'all'; // 'all', 'morning', 'evening'
   bool _showInactiveOnly = false;
   bool _isLoading = false;
@@ -18,6 +19,9 @@ class StudentProvider extends ChangeNotifier {
   String get selectedTeamFilter => _selectedTeamFilter;
   String get selectedTimingFilter => _selectedTimingFilter;
   bool get showInactiveOnly => _showInactiveOnly;
+
+  List<Team> get teams => _dbService.getAllTeams();
+  String getTeamName(String teamId) => _dbService.getTeamName(teamId);
 
   List<Student> get allStudents => _dbService.getAllStudents(includeInactive: true);
   List<Student> get activeStudents => _dbService.getAllStudents(includeInactive: false);
@@ -123,6 +127,53 @@ class StudentProvider extends ChangeNotifier {
 
   Future<void> toggleActiveStatus(String studentId) async {
     await _dbService.toggleStudentActive(studentId);
+    notifyListeners();
+  }
+
+  // ==================== TEAM MANAGEMENT ====================
+
+  Future<Team> createTeam({
+    required String name,
+    String? description,
+  }) async {
+    _isLoading = true;
+    notifyListeners();
+
+    final newTeam = Team(
+      id: 'team_${DateTime.now().millisecondsSinceEpoch}',
+      name: name.trim(),
+      description: description?.trim(),
+      createdAt: DateTime.now(),
+    );
+
+    final created = await _dbService.addTeam(newTeam);
+
+    _isLoading = false;
+    notifyListeners();
+    return created;
+  }
+
+  Future<void> updateTeam(Team team) async {
+    _isLoading = true;
+    notifyListeners();
+
+    await _dbService.updateTeam(team);
+
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  Future<void> deleteTeam(String teamId) async {
+    _isLoading = true;
+    notifyListeners();
+
+    await _dbService.deleteTeam(teamId);
+
+    if (_selectedTeamFilter.toLowerCase() == teamId.toLowerCase()) {
+      _selectedTeamFilter = 'all';
+    }
+
+    _isLoading = false;
     notifyListeners();
   }
 }

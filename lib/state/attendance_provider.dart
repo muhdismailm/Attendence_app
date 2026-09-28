@@ -3,9 +3,11 @@ import 'package:intl/intl.dart';
 import '../models/student_model.dart';
 import '../models/attendance_model.dart';
 import '../services/database_service.dart';
+import '../services/firestore_service.dart';
 
 class AttendanceProvider extends ChangeNotifier {
   final DatabaseService _dbService;
+  final FirestoreService _firestoreService;
 
   DateTime _selectedDate = DateTime.now();
   String _activeTeam = 'team1';
@@ -16,7 +18,25 @@ class AttendanceProvider extends ChangeNotifier {
   bool _isSaving = false;
   bool _hasUnsavedChanges = false;
 
-  AttendanceProvider(this._dbService);
+  // Sync state
+  int _pendingSyncCount = 0;
+  bool _isSyncing = false;
+  String? _syncError;
+  String? _syncSuccessMessage;
+  DateTime? _lastSyncTime;
+
+  AttendanceProvider(
+    this._dbService, [
+    FirestoreService? firestoreService,
+  ]) : _firestoreService = firestoreService ?? FirestoreService() {
+    loadPendingSyncCount();
+    // Attempt background sync on app start if pending items exist
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_pendingSyncCount > 0) {
+        syncPendingAttendance(isManual: false);
+      }
+    });
+  }
 
   DateTime get selectedDate => _selectedDate;
   String get selectedDateFormatted => DateFormat('yyyy-MM-dd').format(_selectedDate);
@@ -29,8 +49,99 @@ class AttendanceProvider extends ChangeNotifier {
   Map<String, String> get currentMarkingState => Map.unmodifiable(_currentMarkingState);
   Map<String, AttendanceRecord> get allAttendanceMap => _dbService.allAttendanceMap;
 
+  // Sync Getters
+  int get pendingSyncCount => _pendingSyncCount;
+  bool get isSyncing => _isSyncing;
+  String? get syncError => _syncError;
+  String? get syncSuccessMessage => _syncSuccessMessage;
+  DateTime? get lastSyncTime => _lastSyncTime;
 
-  // Initialize marking screen for a specific group and date
+  // ==================== SYNC FUNCTIONS ====================
+
+  /// Load count of all attendance records needing sync from local database
+  Future<void> loadPendingSyncCount() async {
+    _pendingSyncCount = _dbService.attendanceRepo.getPendingCount();
+    notifyListeners();
+  }
+
+  /// Refresh sync status and pending count
+  Future<void> refreshSyncStatus() async {
+    await loadPendingSyncCount();
+  }
+
+  void clearSyncMessages() {
+    _syncError = null;
+    _syncSuccessMessage = null;
+    notifyListeners();
+  }
+
+  /// Core Sync Function: Synchronizes all pending local attendance records to Firestore.
+  /// Works across all dates, idempotent using .doc(id).set(...), never loses local data.
+  Future<bool> syncPendingAttendance({bool isManual = true}) async {
+    if (_isSyncing) return false;
+
+    _isSyncing = true;
+    _syncError = null;
+    _syncSuccessMessage = null;
+    notifyListeners();
+
+    try {
+      // 1. Read all local attendance records where syncStatus == 'pending'
+      final pendingRecords = _dbService.attendanceRepo.getPendingRecords();
+
+      // 2. If there are no pending records: return successfully
+      if (pendingRecords.isEmpty) {
+        _pendingSyncCount = 0;
+        _isSyncing = false;
+        _syncSuccessMessage = 'All attendance records are synchronized.';
+        notifyListeners();
+        return true;
+      }
+
+      // 3. Check internet connectivity
+      final hasInternet = await _firestoreService.checkInternetConnection();
+      if (!hasInternet) {
+        _isSyncing = false;
+        _syncError = 'No internet connection. ${pendingRecords.length} record(s) safely stored on this device.';
+        _pendingSyncCount = pendingRecords.length;
+        notifyListeners();
+        return false;
+      }
+
+      // 4. If internet is available: upload every pending attendance record to Firestore
+      final successfullySyncedIds = await _firestoreService.syncPendingBatch(pendingRecords);
+
+      // 5. After successful Firestore upload: change local record syncStatus = 'synced'
+      if (successfullySyncedIds.isNotEmpty) {
+        await _dbService.attendanceRepo.markRecordsAsSynced(successfullySyncedIds);
+      }
+
+      // 6. Refresh pending count
+      _pendingSyncCount = _dbService.attendanceRepo.getPendingCount();
+      _lastSyncTime = DateTime.now();
+
+      if (_pendingSyncCount == 0) {
+        _syncSuccessMessage = 'Attendance synced successfully (${successfullySyncedIds.length} records).';
+        _syncError = null;
+      } else {
+        _syncError = '$_pendingSyncCount attendance record(s) could not be synced. They remain safely stored on this device.';
+      }
+
+      _isSyncing = false;
+      notifyListeners();
+      return _pendingSyncCount == 0;
+    } catch (e) {
+      _pendingSyncCount = _dbService.attendanceRepo.getPendingCount();
+      _syncError = 'Some attendance records could not be synced. They are safely stored on this device.';
+      _isSyncing = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // ==================== MARKING SESSION ====================
+
+  /// Initialize marking screen for a specific group and date
   void initMarkingSession({
     required String team,
     required String timing,
@@ -120,6 +231,10 @@ class AttendanceProvider extends ChangeNotifier {
   int get absentCountInSession =>
       _currentMarkingState.values.where((status) => status == 'absent').length;
 
+  /// Offline-First save:
+  /// 1. Saves directly to local Hive database (marked as 'pending')
+  /// 2. Updates local pending counter
+  /// 3. Attempts automatic background sync if online
   Future<bool> saveAttendance({
     required List<Student> students,
     required String tutorId,
@@ -149,11 +264,19 @@ class AttendanceProvider extends ChangeNotifier {
         );
       }
 
-      await _dbService.saveAttendanceBatch(recordsToSave);
+      // 1. Save to local database with syncStatus: 'pending'
+      await _dbService.saveAttendanceBatch(recordsToSave, syncStatus: 'pending');
+
+      // 2. Update pending count immediately
+      _pendingSyncCount = _dbService.attendanceRepo.getPendingCount();
 
       _isSaving = false;
       _hasUnsavedChanges = false;
       notifyListeners();
+
+      // 3. Trigger background sync immediately (non-blocking)
+      syncPendingAttendance(isManual: false);
+
       return true;
     } catch (e) {
       _isSaving = false;
@@ -162,7 +285,8 @@ class AttendanceProvider extends ChangeNotifier {
     }
   }
 
-  // Summary & Reports
+  // ==================== SUMMARY & REPORTS ====================
+
   Map<String, dynamic> getTodaySummary() {
     return _dbService.getTodayOverallSummary();
   }

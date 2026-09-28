@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'services/auth_service.dart';
 import 'services/database_service.dart';
 import 'state/auth_provider.dart';
@@ -12,6 +13,13 @@ import 'screens/parent/parent_navigation_shell.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Safely attempt Firebase initialization if configured
+  try {
+    await Firebase.initializeApp();
+  } catch (_) {
+    // If Firebase config file is not yet deployed, offline mode operates seamlessly
+  }
 
   final authService = AuthService();
   final dbService = DatabaseService();

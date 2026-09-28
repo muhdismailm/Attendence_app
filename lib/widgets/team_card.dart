@@ -1,38 +1,71 @@
 import 'package:flutter/material.dart';
 
 class TeamCard extends StatelessWidget {
-  final String team; // 'team1' or 'team2'
+  final String team;
+  final String? teamDisplayName;
   final int totalStudents;
   final VoidCallback onTap;
+  final int index;
 
   const TeamCard({
     super.key,
     required this.team,
+    this.teamDisplayName,
     required this.totalStudents,
     required this.onTap,
+    this.index = 0,
   });
 
-  bool get isTeam1 => team.toLowerCase() == 'team1';
-  String get teamDisplayName => isTeam1 ? 'Team 1' : 'Team 2';
+  String get displayName {
+    if (teamDisplayName != null && teamDisplayName!.isNotEmpty) {
+      return teamDisplayName!;
+    }
+    if (team.toLowerCase() == 'team1') return 'Team 1';
+    if (team.toLowerCase() == 'team2') return 'Team 2';
+    return team;
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Exact colors matching the design screenshot
-    final cardBgColor = isTeam1
-        ? const Color(0xFFEFF6FF) // Soft pastel blue
-        : const Color(0xFFF5F3FF); // Soft pastel purple/lavender
+    // Elegant color palettes rotated by index
+    final List<Map<String, Color>> palettes = [
+      {
+        'bg': const Color(0xFFEFF6FF),
+        'border': const Color(0xFFDBEAFE),
+        'avatar': const Color(0xFFDBEAFE),
+        'icon': const Color(0xFF0066FF),
+      },
+      {
+        'bg': const Color(0xFFF5F3FF),
+        'border': const Color(0xFFEDE9FE),
+        'avatar': const Color(0xFFEDE9FE),
+        'icon': const Color(0xFF5B21B6),
+      },
+      {
+        'bg': const Color(0xFFECFDF5),
+        'border': const Color(0xFFD1FAE5),
+        'avatar': const Color(0xFFD1FAE5),
+        'icon': const Color(0xFF059669),
+      },
+      {
+        'bg': const Color(0xFFFFFBEB),
+        'border': const Color(0xFFFEF3C7),
+        'avatar': const Color(0xFFFEF3C7),
+        'icon': const Color(0xFFD97706),
+      },
+      {
+        'bg': const Color(0xFFFFF1F2),
+        'border': const Color(0xFFFFE4E6),
+        'avatar': const Color(0xFFFFE4E6),
+        'icon': const Color(0xFFE11D48),
+      },
+    ];
 
-    final cardBorderColor = isTeam1
-        ? const Color(0xFFDBEAFE)
-        : const Color(0xFFEDE9FE);
-
-    final avatarBgColor = isTeam1
-        ? const Color(0xFFDBEAFE) // Light blue circle
-        : const Color(0xFFEDE9FE); // Light purple circle
-
-    final iconColor = isTeam1
-        ? const Color(0xFF0066FF) // Bold blue
-        : const Color(0xFF5B21B6); // Bold deep purple
+    final palette = palettes[index % palettes.length];
+    final cardBgColor = palette['bg']!;
+    final cardBorderColor = palette['border']!;
+    final avatarBgColor = palette['avatar']!;
+    final iconColor = palette['icon']!;
 
     const buttonColor = Color(0xFF0066FF); // Bright blue circle button
 
@@ -83,7 +116,7 @@ class TeamCard extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        teamDisplayName,
+                        displayName,
                         style: const TextStyle(
                           fontSize: 21,
                           fontWeight: FontWeight.w800,

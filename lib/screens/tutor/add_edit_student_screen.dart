@@ -160,66 +160,100 @@ class _AddEditStudentScreenState extends State<AddEditStudentScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Team Selection (Morning & Evening sessions are automatically applied to both teams)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Team',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textDark,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
+                    // Team Selection
+                    Consumer<StudentProvider>(
+                      builder: (context, studentProv, _) {
+                        final teams = studentProv.teams;
+
+                        // Default selection if current isn't in list
+                        if (teams.isNotEmpty && !teams.any((t) => t.id.toLowerCase() == _selectedTeam.toLowerCase())) {
+                          _selectedTeam = teams.first.id;
+                        }
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
-                              child: _buildTeamOption(
-                                teamKey: 'team1',
-                                title: 'Team 1',
-                                isSelected: _selectedTeam == 'team1',
-                                onSelect: () => setState(() => _selectedTeam = 'team1'),
+                            const Text(
+                              'Team',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textDark,
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _buildTeamOption(
-                                teamKey: 'team2',
-                                title: 'Team 2',
-                                isSelected: _selectedTeam == 'team2',
-                                onSelect: () => setState(() => _selectedTeam = 'team2'),
+                            const SizedBox(height: 8),
+
+                            if (teams.isEmpty)
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: AppColors.absentLightBg,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: AppColors.absentRed.withValues(alpha: 0.3)),
+                                ),
+                                child: const Row(
+                                  children: [
+                                    Icon(Icons.warning_amber_rounded, color: AppColors.absentRed, size: 20),
+                                    SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'No teams exist. Please create a team from Profile first.',
+                                        style: TextStyle(fontSize: 12, color: AppColors.absentRed, fontWeight: FontWeight.w600),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            else
+                              Wrap(
+                                spacing: 10,
+                                runSpacing: 10,
+                                children: teams.asMap().entries.map((entry) {
+                                  final index = entry.key;
+                                  final team = entry.value;
+                                  final isSelected = _selectedTeam.toLowerCase() == team.id.toLowerCase();
+
+                                  return SizedBox(
+                                    width: (MediaQuery.of(context).size.width - 62) / 2,
+                                    child: _buildTeamOption(
+                                      teamKey: team.id,
+                                      title: team.name,
+                                      isSelected: isSelected,
+                                      index: index,
+                                      onSelect: () => setState(() => _selectedTeam = team.id),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+
+                            const SizedBox(height: 10),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: AppColors.surfaceMuted,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: AppColors.borderLight),
+                              ),
+                              child: const Row(
+                                children: [
+                                  Icon(Icons.info_outline_rounded, size: 16, color: AppColors.primaryBlue),
+                                  SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Student will automatically attend both Morning & Evening classes',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.textSecondary,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
-                        ),
-                        const SizedBox(height: 10),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceMuted,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: AppColors.borderLight),
-                          ),
-                          child: const Row(
-                            children: [
-                              Icon(Icons.info_outline_rounded, size: 16, color: AppColors.primaryBlue),
-                              SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Student will automatically attend both Morning & Evening classes',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.textSecondary,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -333,11 +367,18 @@ class _AddEditStudentScreenState extends State<AddEditStudentScreen> {
     required String title,
     required bool isSelected,
     required VoidCallback onSelect,
+    int index = 0,
   }) {
-    final isTeam1 = teamKey == 'team1';
-    final activeBg = isTeam1 ? const Color(0xFFEFF6FF) : const Color(0xFFF5F3FF);
-    final activeBorder = isTeam1 ? AppColors.primaryBlue : const Color(0xFF6366F1);
-    final activeColor = isTeam1 ? AppColors.primaryBlue : const Color(0xFF6366F1);
+    final List<Color> colors = [
+      AppColors.primaryBlue,
+      const Color(0xFF7C3AED),
+      const Color(0xFF059669),
+      const Color(0xFFD97706),
+      const Color(0xFFE11D48),
+    ];
+    final activeColor = colors[index % colors.length];
+    final activeBg = activeColor.withValues(alpha: 0.08);
+    final activeBorder = activeColor;
 
     return Material(
       color: Colors.transparent,
@@ -359,17 +400,21 @@ class _AddEditStudentScreenState extends State<AddEditStudentScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                isTeam1 ? Icons.people_rounded : Icons.diversity_3_rounded,
+                Icons.groups_rounded,
                 size: 20,
                 color: isSelected ? activeColor : AppColors.textSecondary,
               ),
               const SizedBox(width: 8),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                  color: isSelected ? AppColors.textDark : AppColors.textSecondary,
+              Flexible(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                    color: isSelected ? AppColors.textDark : AppColors.textSecondary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               if (isSelected) ...[

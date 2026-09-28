@@ -22,18 +22,6 @@ class StudentsScreen extends StatelessWidget {
         backgroundColor: AppColors.headerGradientStart,
         foregroundColor: Colors.white,
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.person_add_alt_1_rounded, color: Colors.white),
-            tooltip: 'Add Student',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AddEditStudentScreen()),
-              );
-            },
-          ),
-        ],
       ),
       body: Column(
         children: [
@@ -64,26 +52,27 @@ class StudentsScreen extends StatelessWidget {
                 const SizedBox(height: 12),
 
                 // Filter Chips
-                Row(
-                  children: [
-                    _buildFilterChip(
-                      label: 'All Teams',
-                      isSelected: studentProv.selectedTeamFilter == 'all',
-                      onTap: () => studentProv.setTeamFilter('all'),
-                    ),
-                    const SizedBox(width: 8),
-                    _buildFilterChip(
-                      label: 'Team 1',
-                      isSelected: studentProv.selectedTeamFilter == 'team1',
-                      onTap: () => studentProv.setTeamFilter('team1'),
-                    ),
-                    const SizedBox(width: 8),
-                    _buildFilterChip(
-                      label: 'Team 2',
-                      isSelected: studentProv.selectedTeamFilter == 'team2',
-                      onTap: () => studentProv.setTeamFilter('team2'),
-                    ),
-                  ],
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildFilterChip(
+                        label: 'All Teams',
+                        isSelected: studentProv.selectedTeamFilter == 'all',
+                        onTap: () => studentProv.setTeamFilter('all'),
+                      ),
+                      ...studentProv.teams.map((team) {
+                        return Padding(
+                          padding: const EdgeInsets.only(left: 8.0),
+                          child: _buildFilterChip(
+                            label: team.name,
+                            isSelected: studentProv.selectedTeamFilter.toLowerCase() == team.id.toLowerCase(),
+                            onTap: () => studentProv.setTeamFilter(team.id),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -190,6 +179,8 @@ class StudentsScreen extends StatelessWidget {
   }
 
   Widget _buildStudentCard(BuildContext context, Student student) {
+    final studentProv = context.watch<StudentProvider>();
+    final teamName = studentProv.getTeamName(student.team);
     final isTeam1 = student.team.toLowerCase() == 'team1';
 
     return Container(
@@ -273,7 +264,7 @@ class StudentsScreen extends StatelessWidget {
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
-                              student.teamDisplayName,
+                              teamName,
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
