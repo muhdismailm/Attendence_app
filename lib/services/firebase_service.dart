@@ -19,7 +19,7 @@ class FirebaseService {
   // ==================== AUTHENTICATION ====================
 
   String _emailFromUsername(String username) {
-    return '${username.trim().toLowerCase()}@attendanceapp.local';
+    return '${username.trim().toLowerCase()}@yourapp.internal';
   }
 
   Future<AppUser> registerWithUsernameAndPin({
@@ -84,7 +84,13 @@ class FirebaseService {
   // ==================== STUDENTS ====================
 
   Stream<List<Student>> streamStudents() {
-    return studentsRef.snapshots().map((snapshot) {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return Stream.value([]);
+    
+    return studentsRef
+        .where('tutorId', isEqualTo: uid)
+        .snapshots()
+        .map((snapshot) {
       return snapshot.docs.map((doc) {
         return Student.fromMap(doc.data() as Map<String, dynamic>, docId: doc.id);
       }).toList();
@@ -93,11 +99,19 @@ class FirebaseService {
 
   Future<void> addStudent(Student student) async {
     final docRef = student.id.isNotEmpty ? studentsRef.doc(student.id) : studentsRef.doc();
-    await docRef.set(student.toMap());
+    final data = student.toMap();
+    data['tutorId'] = _auth.currentUser?.uid;
+    await docRef.set(data);
   }
 
   Future<void> updateStudent(Student student) async {
-    await studentsRef.doc(student.id).update(student.toMap());
+    final data = student.toMap();
+    // preserve the tutorId from the model itself
+    await studentsRef.doc(student.id).update(data);
+  }
+
+  Future<void> deleteStudent(String studentId) async {
+    await studentsRef.doc(studentId).delete();
   }
 
   // ==================== ATTENDANCE ====================

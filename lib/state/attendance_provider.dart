@@ -4,10 +4,12 @@ import '../models/student_model.dart';
 import '../models/attendance_model.dart';
 import '../services/database_service.dart';
 import '../services/firestore_service.dart';
+import 'student_provider.dart';
 
 class AttendanceProvider extends ChangeNotifier {
   final DatabaseService _dbService;
   final FirestoreService _firestoreService;
+  StudentProvider? _studentProvider;
 
   DateTime _selectedDate = DateTime.now();
   String _activeTeam = 'team1';
@@ -36,6 +38,10 @@ class AttendanceProvider extends ChangeNotifier {
         syncPendingAttendance(isManual: false);
       }
     });
+  }
+
+  void updateStudentProvider(StudentProvider provider) {
+    _studentProvider = provider;
   }
 
   DateTime get selectedDate => _selectedDate;
@@ -89,9 +95,17 @@ class AttendanceProvider extends ChangeNotifier {
       // 1. Read all local attendance records where syncStatus == 'pending'
       final pendingRecords = _dbService.attendanceRepo.getPendingRecords();
 
+      // Verify student belongs to currently authenticated tutor
+      final allStudents = _studentProvider?.allStudents ?? [];
+      final validStudentIds = allStudents.map((s) => s.id).toSet();
+      final recordsToSync = pendingRecords.where((r) => validStudentIds.contains(r.studentId)).toList();
+
       // 2. If there are no pending records: return successfully
-      if (pendingRecords.isEmpty) {
-        _pendingSyncCount = 0;
+      if (recordsToSync.isEmpty) {
+        // If there are pending records but none for the current tutor, just say nothing to sync
+        if (pendingRecords.isEmpty) {
+          _pendingSyncCount = 0;
+        }
         _isSyncing = false;
         _syncSuccessMessage = 'All attendance records are synchronized.';
         notifyListeners();
@@ -102,14 +116,14 @@ class AttendanceProvider extends ChangeNotifier {
       final hasInternet = await _firestoreService.checkInternetConnection();
       if (!hasInternet) {
         _isSyncing = false;
-        _syncError = 'No internet connection. ${pendingRecords.length} record(s) safely stored on this device.';
-        _pendingSyncCount = pendingRecords.length;
+        _syncError = 'No internet connection. ${recordsToSync.length} record(s) safely stored on this device.';
+        _pendingSyncCount = pendingRecords.length; // Keep global pending count
         notifyListeners();
         return false;
       }
 
       // 4. If internet is available: upload every pending attendance record to Firestore
-      final successfullySyncedIds = await _firestoreService.syncPendingBatch(pendingRecords);
+      final successfullySyncedIds = await _firestoreService.syncPendingBatch(recordsToSync);
 
       // 5. After successful Firestore upload: change local record syncStatus = 'synced'
       if (successfullySyncedIds.isNotEmpty) {
@@ -120,16 +134,16 @@ class AttendanceProvider extends ChangeNotifier {
       _pendingSyncCount = _dbService.attendanceRepo.getPendingCount();
       _lastSyncTime = DateTime.now();
 
-      if (_pendingSyncCount == 0) {
+      if (_pendingSyncCount == 0 || successfullySyncedIds.length == recordsToSync.length) {
         _syncSuccessMessage = 'Attendance synced successfully (${successfullySyncedIds.length} records).';
         _syncError = null;
       } else {
-        _syncError = '$_pendingSyncCount attendance record(s) could not be synced. They remain safely stored on this device.';
+        _syncError = 'Some attendance record(s) could not be synced. They remain safely stored on this device.';
       }
 
       _isSyncing = false;
       notifyListeners();
-      return _pendingSyncCount == 0;
+      return successfullySyncedIds.length == recordsToSync.length;
     } catch (e) {
       _pendingSyncCount = _dbService.attendanceRepo.getPendingCount();
       _syncError = 'Some attendance records could not be synced. They are safely stored on this device.';
@@ -154,17 +168,22 @@ class AttendanceProvider extends ChangeNotifier {
     }
 
     final dateStr = selectedDateFormatted;
-    final existingMap = _dbService.getAttendanceForDateAndGroup(
-      date: dateStr,
-      team: team,
-      timing: timing,
-    );
-
-    final students = _dbService.getStudentsByGroup(
-      team: team,
-      timing: timing,
-      includeInactive: false,
-    );
+    
+    final students = _studentProvider?.getStudentsForGroup(team, timing) ?? [];
+    
+    // We can't use DatabaseService's existing group filter because it uses SharedPreferences
+    // So we just iterate over students and check the hive local DB
+    final attMap = _dbService.attendanceRepo.getAttendanceRecordMap();
+    final Map<String, AttendanceRecord> existingMap = {};
+    for (var s in students) {
+      final docIdWithTiming = AttendanceRecord.generateId(s.id, dateStr, timing);
+      final docIdLegacy = AttendanceRecord.generateId(s.id, dateStr);
+      if (attMap.containsKey(docIdWithTiming)) {
+        existingMap[s.id] = attMap[docIdWithTiming]!;
+      } else if (attMap.containsKey(docIdLegacy) && attMap[docIdLegacy]?.timing == timing) {
+        existingMap[s.id] = attMap[docIdLegacy]!;
+      }
+    }
 
     _currentMarkingState.clear();
 
@@ -288,7 +307,27 @@ class AttendanceProvider extends ChangeNotifier {
   // ==================== SUMMARY & REPORTS ====================
 
   Map<String, dynamic> getTodaySummary() {
-    return _dbService.getTodayOverallSummary();
+    final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    int present = 0;
+    int absent = 0;
+
+    final allStudents = _studentProvider?.allStudents ?? [];
+    final validStudentIds = allStudents.map((s) => s.id).toSet();
+
+    for (var record in _dbService.attendanceRepo.getAttendanceRecordMap().values) {
+      if (record.date == todayStr && validStudentIds.contains(record.studentId)) {
+        if (record.isPresent) present++;
+        if (record.isAbsent) absent++;
+      }
+    }
+
+    return {
+      'date': todayStr,
+      'present': present,
+      'absent': absent,
+      'totalMarked': present + absent,
+      'totalStudents': allStudents.length,
+    };
   }
 
   Map<String, dynamic> getStudentStats(String studentId, {int? year, int? month, String? timing}) {
@@ -305,11 +344,44 @@ class AttendanceProvider extends ChangeNotifier {
     required int year,
     required int month,
   }) {
-    return _dbService.getClassMonthlyReport(
-      team: team,
-      timing: timing,
-      year: year,
-      month: month,
-    );
+    final students = _studentProvider?.allStudents.where((s) => s.team.toLowerCase() == team.toLowerCase()).toList() ?? [];
+    final List<Map<String, dynamic>> studentReports = [];
+
+    int totalClassPresents = 0;
+    int totalClassAbsents = 0;
+
+    for (var s in students) {
+      final stats = getStudentStats(s.id, year: year, month: month, timing: timing);
+      final int present = stats['presentCount'] as int;
+      final int absent = stats['absentCount'] as int;
+      final int total = stats['totalClasses'] as int;
+      final double pct = stats['percentage'] as double;
+
+      totalClassPresents += present;
+      totalClassAbsents += absent;
+
+      studentReports.add({
+        'student': s,
+        'present': present,
+        'absent': absent,
+        'total': total,
+        'percentage': pct,
+      });
+    }
+
+    final totalClassEntries = totalClassPresents + totalClassAbsents;
+    final double classAvgPercentage =
+        totalClassEntries > 0 ? (totalClassPresents / totalClassEntries) * 100.0 : 0.0;
+
+    return {
+      'team': team,
+      'timing': timing,
+      'year': year,
+      'month': month,
+      'students': studentReports,
+      'totalPresents': totalClassPresents,
+      'totalAbsents': totalClassAbsents,
+      'averagePercentage': classAvgPercentage,
+    };
   }
 }

@@ -30,24 +30,29 @@ service cloud.firestore {
 
     // Students Collection
     match /students/{studentId} {
-      // Tutor can read and write all students
-      allow read, write: if isTutor();
+      // Tutors can only read, update, delete their own students
+      allow read, update, delete: if isTutor() && resource.data.tutorId == request.auth.uid;
+      // When creating, the tutorId must be the tutor's uid
+      allow create: if isTutor() && request.resource.data.tutorId == request.auth.uid;
       
       // Parents can ONLY read their own child's record
       allow read: if isParentOf(studentId);
-      allow write: if false; // Parents can never edit student profiles
     }
 
     // Attendance Collection
     match /attendance/{attendanceId} {
-      // Tutor can read, create, and update attendance
-      allow read, write: if isTutor();
+      // Tutor can read, create, and update attendance if they own the student
+      allow read, delete: if isTutor() && get(/databases/$(database)/documents/students/$(resource.data.studentId)).data.tutorId == request.auth.uid;
+      allow create, update: if isTutor() && get(/databases/$(database)/documents/students/$(request.resource.data.studentId)).data.tutorId == request.auth.uid;
       
       // Parents can ONLY read attendance belonging to their child
       allow read: if isParentOf(resource.data.studentId);
-      
-      // Parents can NEVER create, update, or delete attendance
-      allow create, update, delete: if false;
+    }
+
+    // Access Requests (Anyone can submit access request, authenticated users/tutors can manage)
+    match /access_requests/{requestId} {
+      allow create: if true;
+      allow read, update, delete: if isAuthenticated() && isTutor();
     }
   }
 }

@@ -1,10 +1,13 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/student_model.dart';
 import '../models/team_model.dart';
 import '../services/database_service.dart';
+import '../services/firebase_service.dart';
 
 class StudentProvider extends ChangeNotifier {
   final DatabaseService _dbService;
+  final FirebaseService _firebaseService;
 
   String _searchQuery = '';
   String _selectedTeamFilter = 'all'; // 'all' or team id
@@ -12,7 +15,45 @@ class StudentProvider extends ChangeNotifier {
   bool _showInactiveOnly = false;
   bool _isLoading = false;
 
-  StudentProvider(this._dbService);
+  List<Student> _students = [];
+  StreamSubscription? _studentSubscription;
+  StreamSubscription? _authSubscription;
+
+  StudentProvider(this._dbService, this._firebaseService) {
+    _authSubscription = _firebaseService.auth.authStateChanges().listen((user) {
+      if (user != null) {
+        _initStudentStream();
+      } else {
+        clearStudents();
+      }
+    });
+    _initStudentStream();
+  }
+
+  void _initStudentStream() {
+    _studentSubscription?.cancel();
+    _studentSubscription = _firebaseService.streamStudents().listen((students) {
+      _students = students;
+      notifyListeners();
+    });
+  }
+
+  void clearStudents() {
+    _studentSubscription?.cancel();
+    _students = [];
+    notifyListeners();
+  }
+
+  void reinitializeStream() {
+    _initStudentStream();
+  }
+
+  @override
+  void dispose() {
+    _studentSubscription?.cancel();
+    _authSubscription?.cancel();
+    super.dispose();
+  }
 
   bool get isLoading => _isLoading;
   String get searchQuery => _searchQuery;
@@ -23,8 +64,8 @@ class StudentProvider extends ChangeNotifier {
   List<Team> get teams => _dbService.getAllTeams();
   String getTeamName(String teamId) => _dbService.getTeamName(teamId);
 
-  List<Student> get allStudents => _dbService.getAllStudents(includeInactive: true);
-  List<Student> get activeStudents => _dbService.getAllStudents(includeInactive: false);
+  List<Student> get allStudents => List.unmodifiable(_students);
+  List<Student> get activeStudents => _students.where((s) => s.active).toList();
 
   List<Student> get filteredStudents {
     final query = _searchQuery.trim().toLowerCase();
@@ -59,28 +100,44 @@ class StudentProvider extends ChangeNotifier {
   }
 
   int getGroupStudentCount(String team, String timing) {
-    return _dbService.getStudentsByGroup(team: team, timing: timing, includeInactive: false).length;
+    return _students.where((s) {
+      return s.team.toLowerCase() == team.toLowerCase() && s.active;
+    }).length;
   }
 
   int getTeamTotalStudentCount(String team) {
-    return _dbService.getStudentsByTeam(team: team, includeInactive: false).length;
+    return _students.where((s) {
+      return s.team.toLowerCase() == team.toLowerCase() && s.active;
+    }).length;
   }
 
   List<Student> getStudentsForTeam(String team) {
-    return _dbService.getStudentsByTeam(team: team, includeInactive: false);
+    var result = _students.where((s) {
+      return s.team.toLowerCase() == team.toLowerCase() && s.active;
+    }).toList();
+    result.sort((a, b) => a.rollNumber.compareTo(b.rollNumber));
+    return result;
   }
 
   List<Student> getStudentsForGroup(String team, String timing) {
-    return _dbService.getStudentsByGroup(team: team, timing: timing, includeInactive: false);
+    var result = _students.where((s) {
+      return s.team.toLowerCase() == team.toLowerCase() && s.active;
+    }).toList();
+    result.sort((a, b) => a.rollNumber.compareTo(b.rollNumber));
+    return result;
   }
 
   Student? getStudentById(String id) {
-    return _dbService.getStudentById(id);
+    try {
+      return _students.firstWhere((s) => s.id == id);
+    } catch (_) {
+      return null;
+    }
   }
 
   Student? getStudentByRollNo(String rollNo) {
     try {
-      return allStudents.firstWhere((s) => s.rollNumber.trim() == rollNo.trim());
+      return _students.firstWhere((s) => s.rollNumber.trim() == rollNo.trim());
     } catch (_) {
       return null;
     }
@@ -110,7 +167,7 @@ class StudentProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    await _dbService.addStudent(student);
+    await _firebaseService.addStudent(student);
 
     _isLoading = false;
     notifyListeners();
@@ -120,15 +177,27 @@ class StudentProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    await _dbService.updateStudent(student);
+    await _firebaseService.updateStudent(student);
+
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  Future<void> deleteStudent(String studentId) async {
+    _isLoading = true;
+    notifyListeners();
+
+    await _firebaseService.deleteStudent(studentId);
 
     _isLoading = false;
     notifyListeners();
   }
 
   Future<void> toggleActiveStatus(String studentId) async {
-    await _dbService.toggleStudentActive(studentId);
-    notifyListeners();
+    final student = getStudentById(studentId);
+    if (student != null) {
+      await _firebaseService.updateStudent(student.copyWith(active: !student.active));
+    }
   }
 
   // ==================== TEAM MANAGEMENT ====================

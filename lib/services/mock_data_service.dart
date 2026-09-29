@@ -22,6 +22,16 @@ class MockDataService {
 
   static final List<AppUser> initialUsers = [
     const AppUser(
+      id: 'tutor_001',
+      username: 'tutor001',
+      pin: '123456',
+      name: 'Tutor One',
+      role: 'tutor',
+      phone: '+91 98765 43210',
+      place: 'Calicut, Kerala',
+      active: true,
+    ),
+    const AppUser(
       id: 'tutor_01',
       username: 'tutor',
       pin: '1234',
@@ -29,6 +39,7 @@ class MockDataService {
       role: 'tutor',
       phone: '+91 98765 43210',
       place: 'Calicut, Kerala',
+      active: true,
     ),
     const AppUser(
       id: 'parent_01',

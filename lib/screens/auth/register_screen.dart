@@ -75,6 +75,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (!mounted) return;
 
     if (success) {
+      if (auth.errorMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(auth.errorMessage!),
+            backgroundColor: AppColors.primaryBlue,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
       Navigator.pop(context); // Return to home/nav shell
     } else if (auth.errorMessage != null) {
       ScaffoldMessenger.of(context).showSnackBar(

@@ -11,6 +11,7 @@ class Student {
   final String? place;
   final String? secondaryPhone;
   final bool active;
+  final String? tutorId;
 
   const Student({
     required this.id,
@@ -25,6 +26,7 @@ class Student {
     this.place,
     this.secondaryPhone,
     this.active = true,
+    this.tutorId,
   });
 
   String get teamDisplayName => team == 'team1' ? 'Team 1' : 'Team 2';
@@ -46,6 +48,7 @@ class Student {
       'place': place,
       'secondaryPhone': secondaryPhone,
       'active': active,
+      'tutorId': tutorId,
     };
   }
 
@@ -63,6 +66,7 @@ class Student {
       place: map['place'],
       secondaryPhone: map['secondaryPhone'],
       active: map['active'] ?? true,
+      tutorId: map['tutorId'],
     );
   }
 
@@ -79,6 +83,7 @@ class Student {
     String? place,
     String? secondaryPhone,
     bool? active,
+    String? tutorId,
   }) {
     return Student(
       id: id ?? this.id,
@@ -93,6 +98,7 @@ class Student {
       place: place ?? this.place,
       secondaryPhone: secondaryPhone ?? this.secondaryPhone,
       active: active ?? this.active,
+      tutorId: tutorId ?? this.tutorId,
     );
   }
 }

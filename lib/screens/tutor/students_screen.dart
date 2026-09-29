@@ -304,6 +304,31 @@ class StudentsScreen extends StatelessWidget {
                   ),
                 ),
 
+                IconButton(
+                  icon: const Icon(Icons.delete_outline_rounded, color: AppColors.absentRed, size: 20),
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Delete Student'),
+                        content: Text('Are you sure you want to delete ${student.name}? This action cannot be undone.'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, false),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, true),
+                            child: const Text('Delete', style: TextStyle(color: AppColors.absentRed)),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirm == true) {
+                      studentProv.deleteStudent(student.id);
+                    }
+                  },
+                ),
                 const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted, size: 20),
               ],
             ),

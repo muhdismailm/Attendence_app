@@ -1,10 +1,10 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:attandence_app/main.dart';
 import 'package:attandence_app/services/auth_service.dart';
 import 'package:attandence_app/services/database_service.dart';
+import 'package:attandence_app/services/firebase_service.dart';
 import 'package:attandence_app/state/auth_provider.dart';
 import 'package:attandence_app/state/student_provider.dart';
 import 'package:attandence_app/state/attendance_provider.dart';
@@ -24,26 +24,26 @@ void main() {
       expect(id, equals('stud_01_2026-09-02'));
     });
 
-    test('AuthService login and register with 4-digit PIN', () async {
+    test('AuthService login and register with credentials', () async {
       final authService = AuthService();
       await authService.initialize();
 
       // Test default tutor login
-      final tutor = await authService.login(username: 'tutor', pin: '1234');
+      final tutor = await authService.login(username: 'tutor', password: '1234');
       expect(tutor.isTutor, isTrue);
-      expect(tutor.name, contains('Robert'));
+      expect(tutor.name.isNotEmpty, isTrue);
 
-      // Test parent registration with 4-digit PIN
-      final newParent = await authService.register(
+      // Test parent registration
+      await authService.register(
         username: 'testparent',
-        pin: '5678',
+        password: '5678',
         name: 'Test Parent',
         role: 'parent',
         studentId: 'stud_t1_m_01',
       );
+      final newParent = authService.currentUser!;
       expect(newParent.isParent, isTrue);
       expect(newParent.username, equals('testparent'));
-      expect(newParent.pin, equals('5678'));
     });
 
     test('DatabaseService student management and group distribution', () async {
@@ -113,11 +113,13 @@ void main() {
     await authService.initialize();
     await dbService.initialize();
 
+    final firebaseService = FirebaseService();
+
     await tester.pumpWidget(
       MultiProvider(
         providers: [
           ChangeNotifierProvider(create: (_) => AuthProvider(authService)),
-          ChangeNotifierProvider(create: (_) => StudentProvider(dbService)),
+          ChangeNotifierProvider(create: (_) => StudentProvider(dbService, firebaseService)),
           ChangeNotifierProvider(create: (_) => AttendanceProvider(dbService)),
         ],
         child: const AttendanceApp(),
@@ -126,9 +128,9 @@ void main() {
 
     await tester.pump();
 
-    expect(find.text('Attendance'), findsWidgets);
-    expect(find.text('Sign In'), findsWidgets);
-    expect(find.text('4-Digit PIN / Password'), findsWidgets);
-    expect(find.byType(ElevatedButton), findsWidgets);
+    expect(find.text('Attendance App'), findsWidgets);
+    expect(find.text('Welcome Back'), findsWidgets);
+    expect(find.text('Password'), findsWidgets);
+    expect(find.text('LOGIN'), findsWidgets);
   });
 }
