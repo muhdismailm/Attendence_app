@@ -34,6 +34,20 @@ class ParentHomeScreen extends StatelessWidget {
             ? studentProv.getStudentByRollNo(user!.studentRollNo!)
             : (studentProv.allStudents.isNotEmpty ? studentProv.allStudents.first : null);
 
+    // Resolve clean parent display name (never "Parent of ...")
+    String parentDisplayName = 'Parent';
+    if (student != null && student.parentName.isNotEmpty && !student.parentName.toLowerCase().startsWith('parent of')) {
+      parentDisplayName = student.parentName;
+    } else if (user?.name != null && user!.name.isNotEmpty) {
+      if (user.name.toLowerCase().startsWith('parent of')) {
+        parentDisplayName = student?.parentName ?? 'Mohammed';
+      } else {
+        parentDisplayName = user.name;
+      }
+    } else {
+      parentDisplayName = 'Mohammed';
+    }
+
     if (student == null) {
       return Scaffold(
         backgroundColor: AppColors.background,
@@ -41,7 +55,7 @@ class ParentHomeScreen extends StatelessWidget {
           children: [
             CommonHeader(
               greeting: 'Hello 👋',
-              title: user?.name ?? 'Parent',
+              title: parentDisplayName,
               badgeText: 'PARENT',
               showDate: true,
             ),
@@ -84,7 +98,7 @@ class ParentHomeScreen extends StatelessWidget {
             // Header
             CommonHeader(
               greeting: 'Hello 👋',
-              title: user?.name ?? 'Parent',
+              title: parentDisplayName,
               subtitle: 'Welcome to your child portal',
               badgeText: 'PARENT',
               showDate: true,
@@ -254,6 +268,128 @@ class ParentHomeScreen extends StatelessWidget {
                               ),
                             ],
                           ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Tutor Details Section (Tutor Name, Place, Number)
+                  Container(
+                    decoration: AppStyles.cardDecoration(boxShadow: AppStyles.cardShadow),
+                    padding: const EdgeInsets.all(18),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.school_rounded, color: AppColors.primaryBlue, size: 22),
+                            SizedBox(width: 10),
+                            Text(
+                              'Tutor & Center Details',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textDark,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        const Divider(height: 1, color: AppColors.borderLight),
+                        const SizedBox(height: 14),
+
+                        // Tutor Name
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryLight,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(Icons.person_rounded, size: 18, color: AppColors.primaryBlue),
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Tutor Name',
+                                    style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+                                  ),
+                                  Text(
+                                    'Ismail',
+                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textDark),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Tutor Place
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryLight,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(Icons.location_on_rounded, size: 18, color: AppColors.primaryBlue),
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Place / Center Location',
+                                    style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+                                  ),
+                                  Text(
+                                    'Calicut, Kerala',
+                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textDark),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Tutor Phone Number
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppColors.presentLightBg,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(Icons.phone_rounded, size: 18, color: AppColors.presentGreen),
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Contact Number',
+                                    style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+                                  ),
+                                  Text(
+                                    '+91 98765 43210',
+                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textDark),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),

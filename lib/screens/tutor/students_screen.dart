@@ -78,14 +78,16 @@ class StudentsScreen extends StatelessWidget {
             ),
           ),
 
-          // Count Bar
+          // Count Bar with the single 'Back to Active Students' button
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Showing ${students.length} Students',
+                  studentProv.showInactiveOnly
+                      ? 'Showing ${students.length} Inactive'
+                      : 'Showing ${students.length} Students',
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
@@ -94,13 +96,22 @@ class StudentsScreen extends StatelessWidget {
                 ),
                 GestureDetector(
                   onTap: () => studentProv.toggleInactiveFilter(),
-                  child: Text(
-                    studentProv.showInactiveOnly ? 'Show Active Students' : 'Show Inactive Only',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primaryBlue,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (studentProv.showInactiveOnly) ...[
+                        const Icon(Icons.arrow_back_rounded, size: 14, color: AppColors.primaryBlue),
+                        const SizedBox(width: 4),
+                      ],
+                      Text(
+                        studentProv.showInactiveOnly ? 'Back to Active Students' : 'Show Inactive Only',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primaryBlue,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -111,16 +122,20 @@ class StudentsScreen extends StatelessWidget {
           Expanded(
             child: students.isEmpty
                 ? EmptyStateView(
-                    icon: Icons.person_search_rounded,
-                    title: 'No Students Found',
-                    message: 'No student matches the current filter or search criteria.',
-                    actionButtonText: 'Add New Student',
-                    onActionPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const AddEditStudentScreen()),
-                      );
-                    },
+                    icon: studentProv.showInactiveOnly ? Icons.person_off_rounded : Icons.person_search_rounded,
+                    title: studentProv.showInactiveOnly ? 'No Inactive Students' : 'No Students Found',
+                    message: studentProv.showInactiveOnly
+                        ? 'There are currently no inactive students in this directory.'
+                        : 'No student matches the current filter or search criteria.',
+                    actionButtonText: studentProv.showInactiveOnly ? null : 'Add New Student',
+                    onActionPressed: studentProv.showInactiveOnly
+                        ? null
+                        : () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const AddEditStudentScreen()),
+                            );
+                          },
                   )
                 : ListView.builder(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
@@ -133,18 +148,20 @@ class StudentsScreen extends StatelessWidget {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.primaryBlue,
-        foregroundColor: Colors.white,
-        elevation: 4,
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const AddEditStudentScreen()),
-          );
-        },
-        child: const Icon(Icons.add, size: 28),
-      ),
+      floatingActionButton: studentProv.showInactiveOnly
+          ? null
+          : FloatingActionButton(
+              backgroundColor: AppColors.primaryBlue,
+              foregroundColor: Colors.white,
+              elevation: 4,
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AddEditStudentScreen()),
+                );
+              },
+              child: const Icon(Icons.add, size: 28),
+            ),
     );
   }
 
@@ -276,7 +293,9 @@ class StudentsScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Parent: ${student.parentName} (${student.parentPhone})',
+                        student.place != null && student.place!.isNotEmpty
+                            ? 'Parent: ${student.parentName} • ${student.place} (${student.parentPhone})'
+                            : 'Parent: ${student.parentName} (${student.parentPhone})',
                         style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,

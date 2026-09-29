@@ -7,6 +7,7 @@ class AppUser {
   final String? studentId; // If parent, linked student ID
   final String? studentRollNo; // For display/linking
   final String? phone;
+  final String? place;
 
   const AppUser({
     required this.id,
@@ -17,6 +18,7 @@ class AppUser {
     this.studentId,
     this.studentRollNo,
     this.phone,
+    this.place,
   });
 
   bool get isTutor => role == 'tutor';
@@ -32,6 +34,7 @@ class AppUser {
       'studentId': studentId,
       'studentRollNo': studentRollNo,
       'phone': phone,
+      'place': place,
     };
   }
 
@@ -45,6 +48,7 @@ class AppUser {
       studentId: map['studentId'],
       studentRollNo: map['studentRollNo'],
       phone: map['phone'],
+      place: map['place'],
     );
   }
 
@@ -57,6 +61,7 @@ class AppUser {
     String? studentId,
     String? studentRollNo,
     String? phone,
+    String? place,
   }) {
     return AppUser(
       id: id ?? this.id,
@@ -67,6 +72,7 @@ class AppUser {
       studentId: studentId ?? this.studentId,
       studentRollNo: studentRollNo ?? this.studentRollNo,
       phone: phone ?? this.phone,
+      place: place ?? this.place,
     );
   }
 }

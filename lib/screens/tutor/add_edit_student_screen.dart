@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../models/student_model.dart';
 import '../../state/student_provider.dart';
@@ -22,8 +23,25 @@ class _AddEditStudentScreenState extends State<AddEditStudentScreen> {
   late TextEditingController _nameController;
   late TextEditingController _rollController;
   late TextEditingController _parentNameController;
+  late TextEditingController _placeController;
   late TextEditingController _parentPhoneController;
-  late TextEditingController _parentEmailController;
+  late TextEditingController _secondaryPhoneController;
+
+  static const List<String> _countryCodes = [
+    '+91',
+    '+971',
+    '+966',
+    '+968',
+    '+974',
+    '+965',
+    '+973',
+    '+1',
+    '+44',
+  ];
+
+  String _selectedCountryCode = '+91';
+  String _selectedSecondaryCountryCode = '+91';
+  bool _hasSecondaryPhone = false;
 
   late String _selectedTeam;
   late bool _isActive;
@@ -37,8 +55,39 @@ class _AddEditStudentScreenState extends State<AddEditStudentScreen> {
     _nameController = TextEditingController(text: s?.name ?? '');
     _rollController = TextEditingController(text: s?.rollNumber ?? '');
     _parentNameController = TextEditingController(text: s?.parentName ?? '');
-    _parentPhoneController = TextEditingController(text: s?.parentPhone ?? '');
-    _parentEmailController = TextEditingController(text: s?.parentEmail ?? '');
+    _placeController = TextEditingController(text: s?.place ?? '');
+
+    // Parse primary phone
+    String rawPrimary = s?.parentPhone.trim() ?? '';
+    for (final code in _countryCodes) {
+      if (rawPrimary.startsWith(code)) {
+        _selectedCountryCode = code;
+        rawPrimary = rawPrimary.substring(code.length).trim();
+        break;
+      }
+    }
+    _parentPhoneController = TextEditingController(
+      text: rawPrimary.replaceAll(RegExp(r'\D'), ''),
+    );
+
+    // Parse secondary phone
+    String rawSecondary = s?.secondaryPhone?.trim() ?? '';
+    if (rawSecondary.isNotEmpty) {
+      _hasSecondaryPhone = true;
+      for (final code in _countryCodes) {
+        if (rawSecondary.startsWith(code)) {
+          _selectedSecondaryCountryCode = code;
+          rawSecondary = rawSecondary.substring(code.length).trim();
+          break;
+        }
+      }
+      _secondaryPhoneController = TextEditingController(
+        text: rawSecondary.replaceAll(RegExp(r'\D'), ''),
+      );
+    } else {
+      _hasSecondaryPhone = false;
+      _secondaryPhoneController = TextEditingController();
+    }
 
     _selectedTeam = s?.team ?? 'team1';
     _isActive = s?.active ?? true;
@@ -49,8 +98,9 @@ class _AddEditStudentScreenState extends State<AddEditStudentScreen> {
     _nameController.dispose();
     _rollController.dispose();
     _parentNameController.dispose();
+    _placeController.dispose();
     _parentPhoneController.dispose();
-    _parentEmailController.dispose();
+    _secondaryPhoneController.dispose();
     super.dispose();
   }
 
@@ -58,6 +108,13 @@ class _AddEditStudentScreenState extends State<AddEditStudentScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     final studentProv = context.read<StudentProvider>();
+    final primaryDigits = _parentPhoneController.text.trim();
+    final fullPrimaryPhone = '$_selectedCountryCode $primaryDigits';
+
+    final secondaryDigits = _secondaryPhoneController.text.trim();
+    final fullSecondaryPhone = _hasSecondaryPhone && secondaryDigits.isNotEmpty
+        ? '$_selectedSecondaryCountryCode $secondaryDigits'
+        : null;
 
     if (isEdit) {
       final updated = widget.student!.copyWith(
@@ -66,8 +123,9 @@ class _AddEditStudentScreenState extends State<AddEditStudentScreen> {
         team: _selectedTeam,
         timing: 'both',
         parentName: _parentNameController.text.trim(),
-        parentPhone: _parentPhoneController.text.trim(),
-        parentEmail: _parentEmailController.text.trim(),
+        place: _placeController.text.trim(),
+        parentPhone: fullPrimaryPhone,
+        secondaryPhone: fullSecondaryPhone,
         active: _isActive,
       );
       await studentProv.updateStudent(updated);
@@ -87,8 +145,9 @@ class _AddEditStudentScreenState extends State<AddEditStudentScreen> {
         team: _selectedTeam,
         timing: 'both',
         parentName: _parentNameController.text.trim(),
-        parentPhone: _parentPhoneController.text.trim(),
-        parentEmail: _parentEmailController.text.trim(),
+        place: _placeController.text.trim(),
+        parentPhone: fullPrimaryPhone,
+        secondaryPhone: fullSecondaryPhone,
         active: true,
       );
       await studentProv.addStudent(newStudent);
@@ -269,7 +328,7 @@ class _AddEditStudentScreenState extends State<AddEditStudentScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Parent / Guardian Info',
+                      'Parent Details',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
@@ -280,27 +339,61 @@ class _AddEditStudentScreenState extends State<AddEditStudentScreen> {
                     CustomTextField(
                       controller: _parentNameController,
                       label: 'Parent Name',
-                      hint: 'e.g. Parent of Ismail',
+                      hint: 'e.g. Mohammed / Guardian Name',
                       prefixIcon: Icons.badge_outlined,
                       validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter parent name' : null,
                     ),
                     const SizedBox(height: 14),
                     CustomTextField(
-                      controller: _parentPhoneController,
-                      label: 'Parent Phone',
-                      hint: 'e.g. +91 98111 00001',
-                      prefixIcon: Icons.phone_outlined,
-                      keyboardType: TextInputType.phone,
-                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter phone' : null,
+                      controller: _placeController,
+                      label: 'Place / City',
+                      hint: 'e.g. Calicut',
+                      prefixIcon: Icons.location_on_outlined,
+                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter place / city' : null,
                     ),
                     const SizedBox(height: 14),
-                    CustomTextField(
-                      controller: _parentEmailController,
-                      label: 'Parent Email / Contact Username',
-                      hint: 'e.g. ismail.parent@example.com',
-                      prefixIcon: Icons.email_outlined,
-                      keyboardType: TextInputType.emailAddress,
+                    _buildPhoneField(
+                      label: 'Parent Phone Number',
+                      controller: _parentPhoneController,
+                      countryCode: _selectedCountryCode,
+                      onCountryCodeChanged: (newCode) {
+                        if (newCode != null) setState(() => _selectedCountryCode = newCode);
+                      },
+                      isRequired: true,
                     ),
+                    const SizedBox(height: 14),
+                    if (_hasSecondaryPhone) ...[
+                      _buildPhoneField(
+                        label: 'Secondary Phone Number (Optional)',
+                        controller: _secondaryPhoneController,
+                        countryCode: _selectedSecondaryCountryCode,
+                        onCountryCodeChanged: (newCode) {
+                          if (newCode != null) setState(() => _selectedSecondaryCountryCode = newCode);
+                        },
+                        isRequired: false,
+                        onRemove: () {
+                          setState(() {
+                            _hasSecondaryPhone = false;
+                            _secondaryPhoneController.clear();
+                          });
+                        },
+                      ),
+                    ] else ...[
+                      OutlinedButton.icon(
+                        onPressed: () => setState(() => _hasSecondaryPhone = true),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primaryBlue,
+                          side: const BorderSide(color: AppColors.borderLight, width: 1.2),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        icon: const Icon(Icons.add_call, size: 16),
+                        label: const Text(
+                          'Add Another Phone Number',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -425,6 +518,148 @@ class _AddEditStudentScreenState extends State<AddEditStudentScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildPhoneField({
+    required String label,
+    required TextEditingController controller,
+    required String countryCode,
+    required ValueChanged<String?> onCountryCodeChanged,
+    required bool isRequired,
+    VoidCallback? onRemove,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textDark,
+              ),
+            ),
+            if (onRemove != null)
+              GestureDetector(
+                onTap: onRemove,
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.remove_circle_outline_rounded, size: 14, color: AppColors.absentRed),
+                    SizedBox(width: 4),
+                    Text(
+                      'Remove',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.absentRed,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Country Code selector
+            Container(
+              height: 50,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: AppStyles.cardBorderRadius,
+                border: Border.all(color: AppColors.borderLight, width: 1.2),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _countryCodes.contains(countryCode) ? countryCode : _countryCodes.first,
+                  icon: const Icon(Icons.arrow_drop_down_rounded, color: AppColors.textSecondary, size: 20),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textDark,
+                  ),
+                  dropdownColor: Colors.white,
+                  items: _countryCodes.map((code) {
+                    return DropdownMenuItem<String>(
+                      value: code,
+                      child: Text(code, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textDark)),
+                    );
+                  }).toList(),
+                  onChanged: onCountryCodeChanged,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+
+            // 10-Digit Phone field
+            Expanded(
+              child: TextFormField(
+                controller: controller,
+                keyboardType: TextInputType.phone,
+                maxLength: 10,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(10),
+                ],
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textDark,
+                ),
+                decoration: InputDecoration(
+                  hintText: '10-digit number',
+                  hintStyle: const TextStyle(fontSize: 14, color: AppColors.textMuted),
+                  counterText: '',
+                  prefixIcon: const Icon(Icons.phone_outlined, size: 20, color: AppColors.textSecondary),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: AppStyles.cardBorderRadius,
+                    borderSide: const BorderSide(color: AppColors.borderLight, width: 1.2),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: AppStyles.cardBorderRadius,
+                    borderSide: const BorderSide(color: AppColors.primaryBlue, width: 1.8),
+                  ),
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: AppStyles.cardBorderRadius,
+                    borderSide: const BorderSide(color: AppColors.absentRed, width: 1.2),
+                  ),
+                  focusedErrorBorder: OutlineInputBorder(
+                    borderRadius: AppStyles.cardBorderRadius,
+                    borderSide: const BorderSide(color: AppColors.absentRed, width: 1.8),
+                  ),
+                ),
+                validator: (val) {
+                  final digits = (val ?? '').replaceAll(RegExp(r'\D'), '');
+                  if (isRequired) {
+                    if (digits.isEmpty) {
+                      return 'Please enter 10-digit number';
+                    }
+                    if (digits.length != 10) {
+                      return 'Must be exactly 10 digits';
+                    }
+                  } else {
+                    if (digits.isNotEmpty && digits.length != 10) {
+                      return 'Must be exactly 10 digits';
+                    }
+                  }
+                  return null;
+                },
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

@@ -181,7 +181,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       CustomTextField(
                         controller: _nameController,
                         label: 'Full Name',
-                        hint: 'e.g. Parent of Ismail',
+                        hint: 'e.g. Mohammed',
                         prefixIcon: Icons.badge_outlined,
                         validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter name' : null,
                       ),

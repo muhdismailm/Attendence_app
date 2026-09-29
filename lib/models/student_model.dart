@@ -8,6 +8,8 @@ class Student {
   final String parentName;
   final String parentPhone;
   final String parentEmail;
+  final String? place;
+  final String? secondaryPhone;
   final bool active;
 
   const Student({
@@ -19,7 +21,9 @@ class Student {
     this.parentId,
     required this.parentName,
     required this.parentPhone,
-    required this.parentEmail,
+    this.parentEmail = '',
+    this.place,
+    this.secondaryPhone,
     this.active = true,
   });
 
@@ -39,6 +43,8 @@ class Student {
       'parentName': parentName,
       'parentPhone': parentPhone,
       'parentEmail': parentEmail,
+      'place': place,
+      'secondaryPhone': secondaryPhone,
       'active': active,
     };
   }
@@ -54,6 +60,8 @@ class Student {
       parentName: map['parentName'] ?? '',
       parentPhone: map['parentPhone'] ?? '',
       parentEmail: map['parentEmail'] ?? '',
+      place: map['place'],
+      secondaryPhone: map['secondaryPhone'],
       active: map['active'] ?? true,
     );
   }
@@ -68,6 +76,8 @@ class Student {
     String? parentName,
     String? parentPhone,
     String? parentEmail,
+    String? place,
+    String? secondaryPhone,
     bool? active,
   }) {
     return Student(
@@ -80,6 +90,8 @@ class Student {
       parentName: parentName ?? this.parentName,
       parentPhone: parentPhone ?? this.parentPhone,
       parentEmail: parentEmail ?? this.parentEmail,
+      place: place ?? this.place,
+      secondaryPhone: secondaryPhone ?? this.secondaryPhone,
       active: active ?? this.active,
     );
   }
