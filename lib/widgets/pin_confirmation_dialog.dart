@@ -276,12 +276,15 @@ class _PinConfirmationDialogState extends State<PinConfirmationDialog> {
                       side: const BorderSide(color: AppColors.borderLight),
                     ),
                     onPressed: () => Navigator.of(context).pop(false),
-                    child: const Text(
-                      'Cancel',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textSecondary,
+                    child: const Center(
+                      child: Text(
+                        'Cancel',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ),
                   ),
@@ -303,9 +306,12 @@ class _PinConfirmationDialogState extends State<PinConfirmationDialog> {
                             height: 18,
                             child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                           )
-                        : Text(
-                            widget.confirmButtonText,
-                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                        : Center(
+                            child: Text(
+                              widget.confirmButtonText,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                            ),
                           ),
                   ),
                 ),

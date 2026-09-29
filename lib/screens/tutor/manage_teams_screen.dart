@@ -274,8 +274,8 @@ class _ManageTeamsScreenState extends State<ManageTeamsScreen> {
     final confirmed = await PinConfirmationDialog.show(
       context: context,
       title: 'Delete "${team.name}"?',
-      message: 'CRITICAL: Deleting "${team.name}" will permanently remove all $studentCount student(s) in this team and their entire attendance history from the database.\n\nEnter your 4-digit login PIN to authorize.',
-      confirmButtonText: 'Delete Permanently',
+      message: 'CRITICAL: Deleting "${team.name}" will permanently remove all $studentCount student(s) in this team and their entire attendance history from the database.',
+      confirmButtonText: 'Delete',
       confirmButtonColor: AppColors.absentRed,
       isDestructive: true,
     );
@@ -305,83 +305,37 @@ class _ManageTeamsScreenState extends State<ManageTeamsScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text(
-          'Full Team Management Console',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 18),
+        title: const FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            'Full Team Management Console',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 18),
+          ),
         ),
         backgroundColor: AppColors.headerGradientStart,
         foregroundColor: Colors.white,
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add_rounded, size: 26),
-            tooltip: 'Create New Team',
-            onPressed: _openCreateTeamModal,
-          ),
-        ],
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
+        ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _openCreateTeamModal,
+        backgroundColor: AppColors.primaryBlue,
+        foregroundColor: Colors.white,
+        elevation: 4,
+        icon: const Icon(Icons.add_rounded),
+        label: const Text(
+          'Add Team',
+          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+        ),
       ),
       body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header Info Banner
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
-              decoration: AppStyles.headerGradientDecoration,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Team Management Systems',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${teams.length} ${teams.length == 1 ? "team" : "teams"} configured',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.white.withValues(alpha: 0.85),
-                            ),
-                          ),
-                        ],
-                      ),
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: AppColors.primaryBlue,
-                          elevation: 2,
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        icon: const Icon(Icons.add_rounded, size: 18),
-                        label: const Text(
-                          'Add Team',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-                        ),
-                        onPressed: _openCreateTeamModal,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
                   // Security Notice
                   Container(
                     padding: const EdgeInsets.all(14),
@@ -443,11 +397,9 @@ class _ManageTeamsScreenState extends State<ManageTeamsScreen> {
                       },
                     ),
                   ],
+                  const SizedBox(height: 80),
                 ],
               ),
-            ),
-          ],
-        ),
       ),
     );
   }
