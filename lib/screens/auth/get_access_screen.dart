@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -20,6 +21,20 @@ class _GetAccessScreenState extends State<GetAccessScreen> {
   final _placeController = TextEditingController();
   final _mobileController = TextEditingController();
 
+  static const List<String> _countryCodes = [
+    '+91',
+    '+971',
+    '+966',
+    '+968',
+    '+974',
+    '+965',
+    '+973',
+    '+1',
+    '+44',
+  ];
+
+  String _selectedCountryCode = '+91';
+
   bool _isSubmitting = false;
   String? _errorMessage;
 
@@ -34,7 +49,7 @@ class _GetAccessScreenState extends State<GetAccessScreen> {
   Future<void> _handleSubmit() async {
     final name = _nameController.text.trim();
     final place = _placeController.text.trim();
-    final mobile = _mobileController.text.trim();
+    final mobileDigits = _mobileController.text.trim().replaceAll(RegExp(r'\D'), '');
 
     if (name.isEmpty) {
       setState(() => _errorMessage = 'Please enter your full name');
@@ -44,14 +59,16 @@ class _GetAccessScreenState extends State<GetAccessScreen> {
       setState(() => _errorMessage = 'Please enter your place / location');
       return;
     }
-    if (mobile.isEmpty) {
+    if (mobileDigits.isEmpty) {
       setState(() => _errorMessage = 'Please enter your mobile number');
       return;
     }
-    if (mobile.replaceAll(RegExp(r'\D'), '').length < 10) {
+    if (mobileDigits.length != 10) {
       setState(() => _errorMessage = 'Please enter a valid 10-digit mobile number');
       return;
     }
+
+    final fullMobile = '$_selectedCountryCode $mobileDigits';
 
     setState(() {
       _isSubmitting = true;
@@ -64,7 +81,7 @@ class _GetAccessScreenState extends State<GetAccessScreen> {
         await FirebaseFirestore.instance.collection('access_requests').add({
           'name': name,
           'place': place,
-          'mobile': mobile,
+          'mobile': fullMobile,
           'role': 'tutor',
           'status': 'pending',
           'createdAt': FieldValue.serverTimestamp(),
@@ -75,7 +92,7 @@ class _GetAccessScreenState extends State<GetAccessScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
         'last_access_request',
-        '$name - $place - $mobile (${DateTime.now().toIso8601String()})',
+        '$name - $place - $fullMobile (${DateTime.now().toIso8601String()})',
       );
 
       if (!mounted) return;
@@ -315,14 +332,120 @@ class _GetAccessScreenState extends State<GetAccessScreen> {
                       const SizedBox(height: 16),
 
                       // 3. Mobile Number Field
-                      CustomTextField(
-                        controller: _mobileController,
-                        label: 'Mobile Number',
-                        hint: 'e.g. +91 98765 43210',
-                        prefixIcon: Icons.phone_outlined,
-                        keyboardType: TextInputType.phone,
-                        textInputAction: TextInputAction.done,
-                        onFieldSubmitted: (_) => _handleSubmit(),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Mobile Number',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textDark,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Country Code selector
+                              Container(
+                                height: 50,
+                                padding: const EdgeInsets.symmetric(horizontal: 10),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: AppStyles.cardBorderRadius,
+                                  border: Border.all(color: AppColors.borderLight, width: 1.2),
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<String>(
+                                    value: _countryCodes.contains(_selectedCountryCode)
+                                        ? _selectedCountryCode
+                                        : _countryCodes.first,
+                                    icon: const Icon(
+                                      Icons.arrow_drop_down_rounded,
+                                      color: AppColors.textSecondary,
+                                      size: 20,
+                                    ),
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.textDark,
+                                    ),
+                                    dropdownColor: Colors.white,
+                                    items: _countryCodes.map((code) {
+                                      return DropdownMenuItem<String>(
+                                        value: code,
+                                        child: Text(
+                                          code,
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.textDark,
+                                          ),
+                                        ),
+                                      );
+                                    }).toList(),
+                                    onChanged: (val) {
+                                      if (val != null) {
+                                        setState(() => _selectedCountryCode = val);
+                                      }
+                                    },
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+
+                              // 10-Digit Phone field
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _mobileController,
+                                  keyboardType: TextInputType.phone,
+                                  maxLength: 10,
+                                  textInputAction: TextInputAction.done,
+                                  onFieldSubmitted: (_) => _handleSubmit(),
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                    LengthLimitingTextInputFormatter(10),
+                                  ],
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.textDark,
+                                  ),
+                                  decoration: InputDecoration(
+                                    hintText: '10-digit number',
+                                    hintStyle: const TextStyle(fontSize: 14, color: AppColors.textMuted),
+                                    counterText: '',
+                                    prefixIcon: const Icon(
+                                      Icons.phone_outlined,
+                                      size: 20,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                    filled: true,
+                                    fillColor: Colors.white,
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: AppStyles.cardBorderRadius,
+                                      borderSide: const BorderSide(color: AppColors.borderLight, width: 1.2),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: AppStyles.cardBorderRadius,
+                                      borderSide: const BorderSide(color: AppColors.primaryBlue, width: 1.8),
+                                    ),
+                                    errorBorder: OutlineInputBorder(
+                                      borderRadius: AppStyles.cardBorderRadius,
+                                      borderSide: const BorderSide(color: AppColors.absentRed, width: 1.2),
+                                    ),
+                                    focusedErrorBorder: OutlineInputBorder(
+                                      borderRadius: AppStyles.cardBorderRadius,
+                                      borderSide: const BorderSide(color: AppColors.absentRed, width: 1.8),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 26),
 

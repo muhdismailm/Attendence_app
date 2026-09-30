@@ -4,6 +4,7 @@ import '../models/student_model.dart';
 import '../models/team_model.dart';
 import '../services/database_service.dart';
 import '../services/firebase_service.dart';
+import 'auth_provider.dart';
 
 class StudentProvider extends ChangeNotifier {
   final DatabaseService _dbService;
@@ -16,32 +17,31 @@ class StudentProvider extends ChangeNotifier {
   bool _isLoading = false;
 
   List<Student> _students = [];
+  String? _currentTutorId;
   StreamSubscription? _studentSubscription;
-  StreamSubscription? _authSubscription;
 
-  StudentProvider(this._dbService, this._firebaseService) {
-    _authSubscription = _firebaseService.auth.authStateChanges().listen((user) {
-      if (user != null) {
-        _initStudentStream();
-      } else {
-        clearStudents();
-      }
-    });
-    _initStudentStream();
+  StudentProvider(this._dbService, this._firebaseService);
+
+  void updateAuthProvider(AuthProvider auth) {
+    final newId = auth.currentUser?.id;
+    if (_currentTutorId != newId) {
+      _currentTutorId = newId;
+      _initStudentStream();
+    }
   }
 
   void _initStudentStream() {
     _studentSubscription?.cancel();
-    _studentSubscription = _firebaseService.streamStudents().listen((students) {
+    if (_currentTutorId == null) {
+      _students = [];
+      notifyListeners();
+      return;
+    }
+    
+    _studentSubscription = _firebaseService.streamStudents(_currentTutorId!).listen((students) {
       _students = students;
       notifyListeners();
     });
-  }
-
-  void clearStudents() {
-    _studentSubscription?.cancel();
-    _students = [];
-    notifyListeners();
   }
 
   void reinitializeStream() {
@@ -51,7 +51,6 @@ class StudentProvider extends ChangeNotifier {
   @override
   void dispose() {
     _studentSubscription?.cancel();
-    _authSubscription?.cancel();
     super.dispose();
   }
 

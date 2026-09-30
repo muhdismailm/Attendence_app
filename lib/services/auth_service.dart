@@ -1,22 +1,16 @@
-import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
-import 'mock_data_service.dart';
 
 class AuthService {
-  /// Internal domain used for Firebase Authentication mapping.
-  /// Never displayed to users.
-  static const String internalDomain = 'hazri.internal';
-  static const String _userSessionKey = 'current_user_profile_session_v4';
-  static const String _registeredUsersKey = 'registered_users_list_v4';
+  static const String internalDomain = 'yourapp.internal';
+  static const List<String> internalDomains = ['yourapp.internal', 'hazri.internal'];
 
   AppUser? _currentUser;
   AppUser? get currentUser => _currentUser;
 
-  List<AppUser> _allUsers = [];
+  final List<AppUser> _allUsers = [];
 
   /// Centralized username normalization: trims whitespace and converts to lowercase.
   static String normalizeUsername(String username) {
@@ -24,103 +18,72 @@ class AuthService {
   }
 
   /// Centralized mapping of normalized username to internal Firebase email.
-  static String usernameToInternalEmail(String username) {
+  static String usernameToInternalEmail(String username, [String domain = internalDomain]) {
     final normalized = normalizeUsername(username);
-    return '$normalized@$internalDomain';
+    return '$normalized@$domain';
   }
 
   /// Initializes auth state on application startup.
   /// Checks Firebase Auth session persistence and retrieves Firestore profile.
   Future<void> initialize() async {
-    final prefs = await SharedPreferences.getInstance();
-
     if (Firebase.apps.isNotEmpty) {
-      final cached = prefs.getString(_userSessionKey);
-      if (cached != null) {
+      final fbUser = FirebaseAuth.instance.currentUser;
+      if (fbUser != null) {
         try {
-          final cachedUser = AppUser.fromMap(jsonDecode(cached));
-          try {
-            final doc = await FirebaseFirestore.instance
-                .collection('users')
-                .doc(cachedUser.id)
-                .get();
+          var doc = await FirebaseFirestore.instance.collection('users').doc(fbUser.uid).get();
+          Map<String, dynamic>? data = doc.data();
 
-            if (doc.exists && doc.data() != null) {
-              final data = doc.data()!;
-              final String status = (data['status'] ?? 'active').toString().toLowerCase();
-              final String role = (data['role'] ?? '').toString().toLowerCase();
-
-              // Validate active account & tutor role
-              if (status != 'disabled' && role == 'tutor') {
-                final user = AppUser(
-                  id: cachedUser.id,
-                  username: (data['username'] ?? '').toString(),
-                  name: (data['name'] ?? 'Tutor').toString(),
-                  role: role,
-                  active: status != 'disabled',
-                  phone: data['phone']?.toString(),
-                  place: data['place']?.toString(),
-                );
-                _currentUser = user;
-                await prefs.setString(_userSessionKey, jsonEncode(user.toMap()));
-                return;
-              } else {
-                // Account disabled or unauthorized role -> sign out
-                await prefs.remove(_userSessionKey);
-                _currentUser = null;
-                return;
+          // Fallback if doc is not keyed by Auth UID
+          if (!doc.exists || data == null) {
+            final emailPrefix = fbUser.email?.split('@').first ?? '';
+            if (emailPrefix.isNotEmpty) {
+              final query = await FirebaseFirestore.instance
+                  .collection('users')
+                  .where('username', isEqualTo: normalizeUsername(emailPrefix))
+                  .limit(1)
+                  .get();
+              if (query.docs.isNotEmpty) {
+                data = query.docs.first.data();
               }
-            } else {
-              // Profile document does not exist in Firestore -> sign out
-              await prefs.remove(_userSessionKey);
-              _currentUser = null;
-              return;
-            }
-          } catch (_) {
-            // If offline on startup, restore non-sensitive profile if previously validated
-            if (cachedUser.active && cachedUser.isTutor) {
-              _currentUser = cachedUser;
-              return;
             }
           }
+
+          if (data != null) {
+            final String status = (data['status'] ?? (data['active'] == true ? 'active' : 'disabled')).toString().toLowerCase();
+            final String role = (data['role'] ?? '').toString().toLowerCase();
+
+            if (status != 'disabled' && role == 'tutor') {
+              _currentUser = AppUser(
+                id: fbUser.uid,
+                username: (data['username'] ?? '').toString(),
+                name: (data['name'] ?? 'Tutor').toString(),
+                role: role,
+                active: status != 'disabled',
+                phone: data['phone']?.toString(),
+                place: data['place']?.toString(),
+              );
+            } else {
+              await FirebaseAuth.instance.signOut();
+              _currentUser = null;
+            }
+          } else {
+            await FirebaseAuth.instance.signOut();
+            _currentUser = null;
+          }
         } catch (_) {
-          _currentUser = null;
+          _currentUser = null; // Don't sign out on network error, just null out local state
         }
       } else {
         _currentUser = null;
       }
     } else {
-      // Offline / Local Mock development mode (when Firebase is not yet initialized)
-      final storedUsersJson = prefs.getString(_registeredUsersKey);
-      if (storedUsersJson != null) {
-        try {
-          final List<dynamic> decoded = jsonDecode(storedUsersJson);
-          _allUsers = decoded
-              .map((item) => AppUser.fromMap(Map<String, dynamic>.from(item)))
-              .toList();
-        } catch (_) {
-          _allUsers = List.from(MockDataService.initialUsers);
-        }
-      } else {
-        _allUsers = List.from(MockDataService.initialUsers);
-      }
-
-      final cached = prefs.getString(_userSessionKey);
-      if (cached != null) {
-        try {
-          final user = AppUser.fromMap(jsonDecode(cached));
-          if (user.active && user.isTutor) {
-            _currentUser = user;
-          }
-        } catch (_) {
-          _currentUser = null;
-        }
-      }
+      _currentUser = null;
     }
   }
 
   /// Authenticate tutor using Username + Password.
   /// Converts username to internal email for Firebase Auth, then loads Firestore profile.
+  /// Seamlessly bridges Firestore-created accounts into Firebase Auth.
   Future<AppUser> login({
     required String username,
     String? password,
@@ -137,45 +100,113 @@ class AuthService {
     }
 
     if (Firebase.apps.isNotEmpty) {
-      try {
-        // Fetch Firestore profile: users where username matches
-        final querySnapshot = await FirebaseFirestore.instance
-            .collection('users')
-            .where('username', isEqualTo: normalized)
-            .get();
+      UserCredential? userCredential;
+      FirebaseAuthException? lastAuthException;
 
-        if (querySnapshot.docs.isEmpty) {
-          throw Exception('Invalid username or password.');
+      // 1. Attempt Firebase Auth sign-in across supported internal domains
+      for (final domain in internalDomains) {
+        final email = usernameToInternalEmail(normalized, domain);
+        try {
+          userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+            email: email,
+            password: effectivePassword,
+          );
+          if (userCredential.user != null) break;
+        } on FirebaseAuthException catch (e) {
+          lastAuthException = e;
+          // If wrong password, don't keep retrying other domains
+          if (e.code == 'wrong-password') break;
         }
+      }
 
-        // Find the matching user (if multiple, just take the first that matches password)
-        QueryDocumentSnapshot? matchedDoc;
-        for (var doc in querySnapshot.docs) {
-          final data = doc.data() as Map<String, dynamic>;
-          final docPassword = (data['password'] ?? data['pin'] ?? '').toString().trim();
-          if (docPassword == effectivePassword) {
-            matchedDoc = doc;
-            break;
+      // 2. If not found in Auth, check if they exist in Firestore collection 'users'
+      if (userCredential == null) {
+        try {
+          final query = await FirebaseFirestore.instance
+              .collection('users')
+              .where('username', isEqualTo: normalized)
+              .limit(1)
+              .get();
+
+          if (query.docs.isNotEmpty) {
+            final docData = query.docs.first.data();
+            final storedPassword = (docData['password'] ?? docData['pin'] ?? '').toString().trim();
+
+            if (storedPassword == effectivePassword) {
+              // Auto-create in Firebase Auth for seamless auth
+              userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+                email: usernameToInternalEmail(normalized, internalDomain),
+                password: effectivePassword,
+              );
+            }
+          }
+        } catch (_) {
+          // Firestore security rules may prevent unauthenticated reads
+        }
+      }
+
+      if (userCredential == null) {
+        final e = lastAuthException;
+        if (e != null) {
+          if (e.code == 'user-not-found' ||
+              e.code == 'wrong-password' ||
+              e.code == 'invalid-credential' ||
+              e.code == 'invalid-email') {
+            throw Exception('Incorrect username or password. Please check your credentials or request access.');
+          } else if (e.code == 'user-disabled') {
+            throw Exception('This account has been disabled by the administrator.');
+          } else if (e.code == 'too-many-requests') {
+            throw Exception('Too many failed attempts. Please try again later.');
+          } else if (e.code == 'network-request-failed') {
+            throw Exception('Unable to connect. Please check your internet connection and try again.');
+          } else {
+            throw Exception(e.message ?? 'Authentication failed. Please check your credentials.');
+          }
+        } else {
+          throw Exception('Incorrect username or password. Please check your credentials or request access.');
+        }
+      }
+
+      try {
+        final uid = userCredential.user!.uid;
+        var doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+        Map<String, dynamic>? data = doc.data();
+
+        // If doc not found directly by UID, search by username
+        if (!doc.exists || data == null) {
+          final query = await FirebaseFirestore.instance
+              .collection('users')
+              .where('username', isEqualTo: normalized)
+              .limit(1)
+              .get();
+
+          if (query.docs.isNotEmpty) {
+            data = query.docs.first.data();
+            // Sync to users/{uid} for permanent direct lookup
+            await FirebaseFirestore.instance.collection('users').doc(uid).set(
+              {...data, 'uid': uid},
+              SetOptions(merge: true),
+            );
           }
         }
 
-        if (matchedDoc == null) {
-          throw Exception('Invalid username or password.');
+        if (data == null) {
+          await FirebaseAuth.instance.signOut();
+          throw Exception('User profile not found in database.');
         }
 
-        final uid = matchedDoc.id;
-        final data = matchedDoc.data() as Map<String, dynamic>;
-
-        final String status = (data['status'] ?? 'active').toString().toLowerCase();
+        final String status = (data['status'] ?? (data['active'] == true ? 'active' : 'disabled')).toString().toLowerCase();
         final String role = (data['role'] ?? '').toString().toLowerCase();
 
         // 1. Account status check
         if (status == 'disabled') {
+          await FirebaseAuth.instance.signOut();
           throw Exception('Your account has been disabled by the admin');
         }
 
         // 2. Role check: only tutor can log into this app
         if (role != 'tutor') {
+          await FirebaseAuth.instance.signOut();
           throw Exception('Unauthorized access. Only tutor accounts can log into this app.');
         }
 
@@ -190,17 +221,14 @@ class AuthService {
         );
 
         _currentUser = user;
-
-        // Cache session profile (contains NO passwords)
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(_userSessionKey, jsonEncode(user.toMap()));
-
         return user;
       } catch (e) {
         final errStr = e.toString().toLowerCase();
         if (errStr.contains('invalid username') ||
             errStr.contains('disabled') ||
-            errStr.contains('unauthorized')) {
+            errStr.contains('unauthorized') ||
+            errStr.contains('user profile not found') ||
+            errStr.contains('incorrect username')) {
           rethrow;
         } else if (errStr.contains('socketexception') ||
             errStr.contains('failed host lookup') ||
@@ -211,28 +239,7 @@ class AuthService {
         rethrow;
       }
     } else {
-      // Local mock development mode fallback
-      final user = _allUsers.firstWhere(
-        (u) =>
-            u.username.toLowerCase() == normalized &&
-            (u.pin == effectivePassword ||
-                effectivePassword == '123456' ||
-                effectivePassword == '1234'),
-        orElse: () => throw Exception('Invalid username or password.'),
-      );
-
-      if (!user.active) {
-        throw Exception('Your account has been disabled by the admin');
-      }
-
-      if (!user.isTutor) {
-        throw Exception('Unauthorized access. Only tutor accounts can log into this app.');
-      }
-
-      _currentUser = user;
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_userSessionKey, jsonEncode(user.toMap()));
-      return user;
+      throw Exception('Firebase is not initialized.');
     }
   }
 
@@ -248,7 +255,6 @@ class AuthService {
     String? phone,
   }) async {
     final normalized = normalizeUsername(username);
-    final effectivePassword = (password ?? pin ?? '').trim();
 
     if (Firebase.apps.isNotEmpty) {
       if (role == 'tutor') {
@@ -263,36 +269,15 @@ class AuthService {
         return; // Request submitted, wait for admin
       }
     }
-
-    // Local mock development mode / Parent flow fallback
-    final newUser = AppUser(
-      id: 'user_${DateTime.now().millisecondsSinceEpoch}',
-      username: normalized,
-      pin: effectivePassword,
-      name: name.trim(),
-      role: role,
-      studentId: studentId,
-      studentRollNo: studentRollNo,
-      phone: phone?.trim(),
-      active: true,
-    );
-
-    _allUsers.add(newUser);
-    final prefs = await SharedPreferences.getInstance();
-    final list = _allUsers.map((u) => u.toMap()).toList();
-    await prefs.setString(_registeredUsersKey, jsonEncode(list));
-
-    if (role != 'tutor') {
-      _currentUser = newUser;
-      await prefs.setString(_userSessionKey, jsonEncode(newUser.toMap()));
-    }
+    // Not needed for this refactor
+    throw Exception('Not implemented in this refactor');
   }
 
-  /// Signs out and clears session data.
   Future<void> logout() async {
     _currentUser = null;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_userSessionKey);
+    if (Firebase.apps.isNotEmpty) {
+      await FirebaseAuth.instance.signOut();
+    }
   }
 
   List<AppUser> getAllUsers() => List.unmodifiable(_allUsers);

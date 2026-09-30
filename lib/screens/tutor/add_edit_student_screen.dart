@@ -44,6 +44,7 @@ class _AddEditStudentScreenState extends State<AddEditStudentScreen> {
   bool _hasSecondaryPhone = false;
 
   late String _selectedTeam;
+  late String _selectedTiming;
   late bool _isActive;
 
   bool get isEdit => widget.student != null;
@@ -90,6 +91,7 @@ class _AddEditStudentScreenState extends State<AddEditStudentScreen> {
     }
 
     _selectedTeam = s?.team ?? 'team1';
+    _selectedTiming = (s?.timing == 'evening') ? 'evening' : 'morning';
     _isActive = s?.active ?? true;
   }
 
@@ -116,52 +118,61 @@ class _AddEditStudentScreenState extends State<AddEditStudentScreen> {
         ? '$_selectedSecondaryCountryCode $secondaryDigits'
         : null;
 
-    if (isEdit) {
-      final updated = widget.student!.copyWith(
-        name: _nameController.text.trim(),
-        rollNumber: _rollController.text.trim(),
-        team: _selectedTeam,
-        timing: 'both',
-        parentName: _parentNameController.text.trim(),
-        place: _placeController.text.trim(),
-        parentPhone: fullPrimaryPhone,
-        secondaryPhone: fullSecondaryPhone,
-        active: _isActive,
-      );
-      await studentProv.updateStudent(updated);
+    try {
+      if (isEdit) {
+        final updated = widget.student!.copyWith(
+          name: _nameController.text.trim(),
+          rollNumber: _rollController.text.trim(),
+          team: _selectedTeam,
+          timing: _selectedTiming,
+          parentName: _parentNameController.text.trim(),
+          place: _placeController.text.trim(),
+          parentPhone: fullPrimaryPhone,
+          secondaryPhone: fullSecondaryPhone,
+          active: _isActive,
+        );
+        await studentProv.updateStudent(updated);
 
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Student updated successfully'),
+            backgroundColor: AppColors.primaryBlue,
+          ),
+        );
+      } else {
+        final newStudent = Student(
+          id: 'stud_${DateTime.now().millisecondsSinceEpoch}',
+          name: _nameController.text.trim(),
+          rollNumber: _rollController.text.trim(),
+          team: _selectedTeam,
+          timing: _selectedTiming,
+          parentName: _parentNameController.text.trim(),
+          place: _placeController.text.trim(),
+          parentPhone: fullPrimaryPhone,
+          secondaryPhone: fullSecondaryPhone,
+          active: true,
+        );
+        await studentProv.addStudent(newStudent);
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Student added successfully'),
+            backgroundColor: AppColors.presentGreen,
+          ),
+        );
+      }
+      Navigator.pop(context);
+    } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Student updated successfully'),
-          backgroundColor: AppColors.primaryBlue,
-        ),
-      );
-    } else {
-      final newStudent = Student(
-        id: 'stud_${DateTime.now().millisecondsSinceEpoch}',
-        name: _nameController.text.trim(),
-        rollNumber: _rollController.text.trim(),
-        team: _selectedTeam,
-        timing: 'both',
-        parentName: _parentNameController.text.trim(),
-        place: _placeController.text.trim(),
-        parentPhone: fullPrimaryPhone,
-        secondaryPhone: fullSecondaryPhone,
-        active: true,
-      );
-      await studentProv.addStudent(newStudent);
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Student added successfully'),
-          backgroundColor: AppColors.presentGreen,
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: AppColors.absentRed,
         ),
       );
     }
-
-    Navigator.pop(context);
   }
 
   @override
@@ -285,30 +296,38 @@ class _AddEditStudentScreenState extends State<AddEditStudentScreen> {
                                 }).toList(),
                               ),
 
-                            const SizedBox(height: 10),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: AppColors.surfaceMuted,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: AppColors.borderLight),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'Timing',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textDark,
                               ),
-                              child: const Row(
-                                children: [
-                                  Icon(Icons.info_outline_rounded, size: 16, color: AppColors.primaryBlue),
-                                  SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      'Student will automatically attend both Morning & Evening classes',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: AppColors.textSecondary,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildTeamOption(
+                                    teamKey: 'morning',
+                                    title: 'Morning',
+                                    isSelected: _selectedTiming == 'morning',
+                                    index: 1, // different color
+                                    onSelect: () => setState(() => _selectedTiming = 'morning'),
                                   ),
-                                ],
-                              ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: _buildTeamOption(
+                                    teamKey: 'evening',
+                                    title: 'Evening',
+                                    isSelected: _selectedTiming == 'evening',
+                                    index: 2, // different color
+                                    onSelect: () => setState(() => _selectedTiming = 'evening'),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         );

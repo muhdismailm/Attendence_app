@@ -37,7 +37,12 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider(authService)),
-        ChangeNotifierProvider(create: (_) => StudentProvider(dbService, firebaseService)),
+        ChangeNotifierProxyProvider<AuthProvider, StudentProvider>(
+          create: (_) => StudentProvider(dbService, firebaseService),
+          update: (_, authProvider, studentProvider) {
+            return studentProvider!..updateAuthProvider(authProvider);
+          },
+        ),
         ChangeNotifierProxyProvider<StudentProvider, AttendanceProvider>(
           create: (_) => AttendanceProvider(dbService),
           update: (_, studentProvider, attendanceProvider) {

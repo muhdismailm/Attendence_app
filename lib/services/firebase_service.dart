@@ -19,7 +19,7 @@ class FirebaseService {
   // ==================== AUTHENTICATION ====================
 
   String _emailFromUsername(String username) {
-    return '${username.trim().toLowerCase()}@yourapp.internal';
+    return '${username.trim().toLowerCase()}@hazri.internal';
   }
 
   Future<AppUser> registerWithUsernameAndPin({
@@ -83,12 +83,9 @@ class FirebaseService {
 
   // ==================== STUDENTS ====================
 
-  Stream<List<Student>> streamStudents() {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) return Stream.value([]);
-    
+  Stream<List<Student>> streamStudents(String tutorId) {
     return studentsRef
-        .where('tutorId', isEqualTo: uid)
+        .where('tutorId', isEqualTo: tutorId)
         .snapshots()
         .map((snapshot) {
       return snapshot.docs.map((doc) {
@@ -98,10 +95,19 @@ class FirebaseService {
   }
 
   Future<void> addStudent(Student student) async {
-    final docRef = student.id.isNotEmpty ? studentsRef.doc(student.id) : studentsRef.doc();
-    final data = student.toMap();
-    data['tutorId'] = _auth.currentUser?.uid;
-    await docRef.set(data);
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) {
+      throw Exception('Authentication required. Cannot add student without being logged in.');
+    }
+
+    try {
+      final docRef = student.id.isNotEmpty ? studentsRef.doc(student.id) : studentsRef.doc();
+      final data = student.toMap();
+      data['tutorId'] = uid;
+      await docRef.set(data);
+    } catch (e) {
+      throw Exception('Failed to add student to database: $e');
+    }
   }
 
   Future<void> updateStudent(Student student) async {
@@ -111,6 +117,14 @@ class FirebaseService {
   }
 
   Future<void> deleteStudent(String studentId) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) throw Exception('Authentication required.');
+
+    final doc = await studentsRef.doc(studentId).get();
+    if (doc.exists && (doc.data() as Map<String, dynamic>)['tutorId'] != uid) {
+      throw Exception('Permission denied: You can only delete your own students.');
+    }
+
     await studentsRef.doc(studentId).delete();
   }
 
