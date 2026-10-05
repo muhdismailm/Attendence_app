@@ -69,8 +69,45 @@ class DynamicSyncButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final attProv = context.watch<AttendanceProvider>();
     final isSyncing = attProv.isSyncing;
+    final isDeletionInProgress = attProv.isStudentDeletionInProgress;
     final pendingCount = attProv.pendingSyncCount;
     final hasError = attProv.syncError != null && !isSyncing;
+
+    // DELETION IN PROGRESS STATE: Sync is disabled during cascade deletion
+    if (isDeletionInProgress) {
+      return Container(
+        height: isCompact ? 38 : 48,
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.textMuted,
+              ),
+            ),
+            SizedBox(width: 10),
+            Text(
+              'Sync Paused...',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     // STATE 3: Currently syncing
     if (isSyncing) {

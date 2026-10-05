@@ -260,7 +260,7 @@ class _MarkAttendanceScreenState extends State<MarkAttendanceScreen> {
                     message: 'Add students to this team and timing to start taking attendance.',
                   )
                 : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 90),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                     itemCount: groupStudents.length,
                     itemBuilder: (context, index) {
                       final student = groupStudents[index];
@@ -279,11 +279,10 @@ class _MarkAttendanceScreenState extends State<MarkAttendanceScreen> {
         ],
       ),
 
-      // Sticky Bottom Save Action
-      bottomSheet: groupStudents.isEmpty
+      // Sticky Bottom Save Action - using bottomNavigationBar for proper gesture/button nav bar insets
+      bottomNavigationBar: groupStudents.isEmpty
           ? null
           : Container(
-              padding: const EdgeInsets.all(16.0),
               decoration: BoxDecoration(
                 color: Colors.white,
                 boxShadow: [
@@ -295,11 +294,16 @@ class _MarkAttendanceScreenState extends State<MarkAttendanceScreen> {
                 ],
               ),
               child: SafeArea(
-                child: CustomButton(
-                  text: '✓ SAVE ATTENDANCE',
-                  isLoading: attProv.isSaving,
-                  icon: Icons.check_circle_outline_rounded,
-                  onPressed: () => _handleSave(groupStudents),
+                top: false,
+                bottom: true,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                  child: CustomButton(
+                    text: '✓ SAVE ATTENDANCE',
+                    isLoading: attProv.isSaving,
+                    icon: Icons.check_circle_outline_rounded,
+                    onPressed: () => _handleSave(groupStudents),
+                  ),
                 ),
               ),
             ),

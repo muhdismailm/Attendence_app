@@ -13,11 +13,15 @@ class AttendanceLocalRepository {
     return _box!;
   }
 
-  Future<void> initialize() async {
+  Future<void> initialize([String? customBoxName]) async {
     if (_box != null && _box!.isOpen) return;
 
-    await Hive.initFlutter();
-    _box = await Hive.openBox<Map>(boxName);
+    try {
+      await Hive.initFlutter();
+    } catch (_) {
+      // Hive already initialized via Hive.init() in test environment
+    }
+    _box = await Hive.openBox<Map>(customBoxName ?? boxName);
   }
 
   /// Get total count of attendance records currently marked as pending sync

@@ -2,13 +2,18 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/student_model.dart';
 import '../models/team_model.dart';
+import '../models/user_model.dart';
 import '../services/database_service.dart';
 import '../services/firebase_service.dart';
+import '../services/parent_account_service.dart';
+import 'attendance_provider.dart';
 import 'auth_provider.dart';
 
 class StudentProvider extends ChangeNotifier {
   final DatabaseService _dbService;
   final FirebaseService _firebaseService;
+  final ParentAccountService _parentAccountService;
+  AttendanceProvider? _attendanceProvider;
 
   String _searchQuery = '';
   String _selectedTeamFilter = 'all'; // 'all' or team id
@@ -20,7 +25,15 @@ class StudentProvider extends ChangeNotifier {
   String? _currentTutorId;
   StreamSubscription? _studentSubscription;
 
-  StudentProvider(this._dbService, this._firebaseService);
+  StudentProvider(
+    this._dbService,
+    this._firebaseService, [
+    ParentAccountService? parentAccountService,
+  ]) : _parentAccountService = parentAccountService ?? ParentAccountService();
+
+  void updateAttendanceProvider(AttendanceProvider attProv) {
+    _attendanceProvider = attProv;
+  }
 
   void updateAuthProvider(AuthProvider auth) {
     final newId = auth.currentUser?.id;
@@ -182,14 +195,41 @@ class StudentProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> deleteStudent(String studentId) async {
+  Future<StudentDeletionReport> deleteStudent(
+    String studentId, [
+    AttendanceProvider? attendanceProvider,
+  ]) async {
+    final attProv = attendanceProvider ?? _attendanceProvider;
+
+    // 1. Disable "Sync Now" and auto-refreshes while deletion runs
+    attProv?.setStudentDeletionInProgress(true);
     _isLoading = true;
     notifyListeners();
 
-    await _firebaseService.deleteStudent(studentId);
+    try {
+      // Steps 1 to 5: Cloud cascade deletion via service layer
+      final report = await _firebaseService.deleteStudentCompletely(studentId);
 
-    _isLoading = false;
-    notifyListeners();
+      // Step 6: Purge local data ONLY after all cloud steps succeed:
+      // Purge all local attendance records (synced and pending) from Hive,
+      // and remove student from local cached student data.
+      await _dbService.deleteStudentCompletelyLocal(studentId);
+
+      // Step 7: Clear this student's records from AttendanceProvider in-memory state
+      attProv?.clearStudentAttendanceFromMemory(studentId);
+
+      // Update StudentProvider in-memory state
+      _students.removeWhere((s) => s.id == studentId);
+      _isLoading = false;
+      notifyListeners();
+
+      return report;
+    } finally {
+      // Re-enable sync operations
+      attProv?.setStudentDeletionInProgress(false);
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   Future<void> toggleActiveStatus(String studentId) async {
@@ -244,5 +284,36 @@ class StudentProvider extends ChangeNotifier {
 
     _isLoading = false;
     notifyListeners();
+  }
+
+  // ==================== PARENT ACCOUNT MANAGEMENT ====================
+
+  /// Creates a parent account for a student. Returns loginId and pin for immediate one-time display.
+  /// Does NOT cache or store PIN in provider state.
+  Future<ParentCredentials> createParentAccount(Student student) async {
+    final creds = await _parentAccountService.createParentAccount(student);
+    return creds;
+  }
+
+  /// Issues a new parent login for a student: generates new credentials, deactivates old parent doc.
+  /// Does NOT cache or store PIN in provider state.
+  Future<ParentCredentials> issueNewParentLogin(Student student) async {
+    final creds = await _parentAccountService.issueNewParentLogin(student);
+    return creds;
+  }
+
+  /// Toggles the parent account active flag.
+  Future<void> setParentActive(String parentUid, bool active) async {
+    await _parentAccountService.setParentActive(parentUid, active);
+  }
+
+  /// Fetches the parent account details for a given parent UID.
+  Future<AppUser?> getParentAccount(String parentUid) async {
+    return await _parentAccountService.getParentAccount(parentUid);
+  }
+
+  /// Real-time stream of parent account details for a given parent UID.
+  Stream<AppUser?> streamParentAccount(String parentUid) {
+    return _parentAccountService.streamParentAccount(parentUid);
   }
 }

@@ -204,6 +204,21 @@ class DatabaseService {
     }
   }
 
+  /// Completely deletes all local data for a student:
+  /// - Removes all local attendance records (synced and pending) from Hive
+  /// - Removes the student from the local _students cache and SharedPreferences
+  Future<void> deleteStudentCompletelyLocal(String studentId) async {
+    // 1. Purge all attendance records for this student from Hive (synced and pending)
+    await _attendanceRepo.deleteRecordsForStudentOrTeam(
+      studentIds: {studentId},
+    );
+
+    // 2. Remove from local student list and SharedPreferences
+    _students.removeWhere((s) => s.id == studentId);
+    final prefs = await SharedPreferences.getInstance();
+    await _saveStudents(prefs);
+  }
+
   // ==================== ATTENDANCE (HIVE BACKED) ====================
 
   Map<String, AttendanceRecord> get allAttendanceMap => _attendanceRepo.getAttendanceRecordMap();

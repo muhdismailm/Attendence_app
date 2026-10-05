@@ -9,6 +9,9 @@ class AppUser {
   final String? phone;
   final String? place;
   final bool active;
+  final List<String> studentIds;
+  final bool mustChangePassword;
+  final String? createdBy;
 
   const AppUser({
     required this.id,
@@ -21,6 +24,9 @@ class AppUser {
     this.phone,
     this.place,
     this.active = true,
+    this.studentIds = const [],
+    this.mustChangePassword = false,
+    this.createdBy,
   });
 
   bool get isTutor => role.toLowerCase() == 'tutor';
@@ -33,14 +39,24 @@ class AppUser {
       'name': name,
       'role': role,
       'active': active,
+      'mustChangePassword': mustChangePassword,
+      if (studentIds.isNotEmpty) 'studentIds': studentIds,
       if (studentId != null) 'studentId': studentId,
       if (studentRollNo != null) 'studentRollNo': studentRollNo,
       if (phone != null) 'phone': phone,
       if (place != null) 'place': place,
+      if (createdBy != null) 'createdBy': createdBy,
     };
   }
 
   factory AppUser.fromMap(Map<String, dynamic> map, {String? docId}) {
+    List<String> parsedStudentIds = [];
+    if (map['studentIds'] is List) {
+      parsedStudentIds = (map['studentIds'] as List).map((e) => e.toString()).toList();
+    } else if (map['studentId'] != null) {
+      parsedStudentIds = [map['studentId'].toString()];
+    }
+
     return AppUser(
       id: docId ?? map['id'] ?? '',
       username: map['username'] ?? '',
@@ -52,6 +68,9 @@ class AppUser {
       phone: map['phone'],
       place: map['place'],
       active: map['active'] ?? true,
+      studentIds: parsedStudentIds,
+      mustChangePassword: map['mustChangePassword'] == true,
+      createdBy: map['createdBy'],
     );
   }
 
@@ -66,6 +85,9 @@ class AppUser {
     String? phone,
     String? place,
     bool? active,
+    List<String>? studentIds,
+    bool? mustChangePassword,
+    String? createdBy,
   }) {
     return AppUser(
       id: id ?? this.id,
@@ -78,6 +100,9 @@ class AppUser {
       phone: phone ?? this.phone,
       place: place ?? this.place,
       active: active ?? this.active,
+      studentIds: studentIds ?? this.studentIds,
+      mustChangePassword: mustChangePassword ?? this.mustChangePassword,
+      createdBy: createdBy ?? this.createdBy,
     );
   }
 }

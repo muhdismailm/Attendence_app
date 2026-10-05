@@ -62,16 +62,36 @@ class AttendanceProvider extends ChangeNotifier {
   String? get syncSuccessMessage => _syncSuccessMessage;
   DateTime? get lastSyncTime => _lastSyncTime;
 
+  // Student deletion lock: disables Sync Now and auto-refreshes while deletion runs
+  bool _isStudentDeletionInProgress = false;
+  bool get isStudentDeletionInProgress => _isStudentDeletionInProgress;
+
+  void setStudentDeletionInProgress(bool inProgress) {
+    if (_isStudentDeletionInProgress != inProgress) {
+      _isStudentDeletionInProgress = inProgress;
+      notifyListeners();
+    }
+  }
+
+  /// Clears in-memory attendance state for a deleted student
+  void clearStudentAttendanceFromMemory(String studentId) {
+    _currentMarkingState.remove(studentId);
+    _pendingSyncCount = _dbService.attendanceRepo.getPendingCount();
+    notifyListeners();
+  }
+
   // ==================== SYNC FUNCTIONS ====================
 
   /// Load count of all attendance records needing sync from local database
   Future<void> loadPendingSyncCount() async {
+    if (_isStudentDeletionInProgress) return;
     _pendingSyncCount = _dbService.attendanceRepo.getPendingCount();
     notifyListeners();
   }
 
   /// Refresh sync status and pending count
   Future<void> refreshSyncStatus() async {
+    if (_isStudentDeletionInProgress) return;
     await loadPendingSyncCount();
   }
 
@@ -84,7 +104,7 @@ class AttendanceProvider extends ChangeNotifier {
   /// Core Sync Function: Synchronizes all pending local attendance records to Firestore.
   /// Works across all dates, idempotent using .doc(id).set(...), never loses local data.
   Future<bool> syncPendingAttendance({bool isManual = true}) async {
-    if (_isSyncing) return false;
+    if (_isSyncing || _isStudentDeletionInProgress) return false;
 
     _isSyncing = true;
     _syncError = null;

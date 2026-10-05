@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../models/student_model.dart';
+import '../../models/user_model.dart';
 import '../../state/student_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_styles.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_text_field.dart';
+import '../../widgets/parent_credentials_bottom_sheet.dart';
 
 class AddEditStudentScreen extends StatefulWidget {
   final Student? student; // If null, mode is Add; otherwise Edit
@@ -48,6 +50,16 @@ class _AddEditStudentScreenState extends State<AddEditStudentScreen> {
   late bool _isActive;
 
   bool get isEdit => widget.student != null;
+
+  Student? get _currentStudent {
+    if (!isEdit) return null;
+    final studentProv = context.watch<StudentProvider>();
+    return studentProv.getStudentById(widget.student!.id) ?? widget.student;
+  }
+
+  bool _isCreatingParentAccount = false;
+  bool _isReissuingParentLogin = false;
+  bool _isTogglingParentActive = false;
 
   @override
   void initState() {
@@ -140,6 +152,7 @@ class _AddEditStudentScreenState extends State<AddEditStudentScreen> {
             backgroundColor: AppColors.primaryBlue,
           ),
         );
+        Navigator.pop(context);
       } else {
         final newStudent = Student(
           id: 'stud_${DateTime.now().millisecondsSinceEpoch}',
@@ -153,17 +166,36 @@ class _AddEditStudentScreenState extends State<AddEditStudentScreen> {
           secondaryPhone: fullSecondaryPhone,
           active: true,
         );
+
+        // Step 1: Save student to Firestore
         await studentProv.addStudent(newStudent);
 
+        // Step 2: Attempt parent account creation
+        try {
+          final creds = await studentProv.createParentAccount(newStudent);
+          if (!mounted) return;
+          await ParentCredentialsBottomSheet.show(
+            context: context,
+            studentName: newStudent.name,
+            loginId: creds.loginId,
+            pin: creds.pin,
+          );
+        } catch (accountError) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Student saved, but parent account creation failed: $accountError',
+              ),
+              backgroundColor: AppColors.absentRed,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Student added successfully'),
-            backgroundColor: AppColors.presentGreen,
-          ),
-        );
+        Navigator.pop(context);
       }
-      Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -172,6 +204,124 @@ class _AddEditStudentScreenState extends State<AddEditStudentScreen> {
           backgroundColor: AppColors.absentRed,
         ),
       );
+    }
+  }
+
+  Future<void> _handleCreateParentLogin(Student student) async {
+    setState(() => _isCreatingParentAccount = true);
+    final studentProv = context.read<StudentProvider>();
+    try {
+      final creds = await studentProv.createParentAccount(student);
+      if (!mounted) return;
+      await ParentCredentialsBottomSheet.show(
+        context: context,
+        studentName: student.name,
+        loginId: creds.loginId,
+        pin: creds.pin,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to create parent login: $e'),
+          backgroundColor: AppColors.absentRed,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isCreatingParentAccount = false);
+      }
+    }
+  }
+
+  Future<void> _handleIssueNewParentLogin(Student student) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: AppColors.absentRed),
+            SizedBox(width: 8),
+            Text('Issue New Login?', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+          ],
+        ),
+        content: const Text(
+          'The old ID and password will stop working. A new login ID and 6-digit PIN will be issued for the parent.',
+          style: TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.absentRed,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Issue New Login', style: TextStyle(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    if (!mounted) return;
+
+    setState(() => _isReissuingParentLogin = true);
+    final studentProv = context.read<StudentProvider>();
+    try {
+      final creds = await studentProv.issueNewParentLogin(student);
+      if (!mounted) return;
+      await ParentCredentialsBottomSheet.show(
+        context: context,
+        studentName: student.name,
+        loginId: creds.loginId,
+        pin: creds.pin,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to issue new parent login: $e'),
+          backgroundColor: AppColors.absentRed,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isReissuingParentLogin = false);
+      }
+    }
+  }
+
+  Future<void> _handleToggleParentActive(String parentUid, bool currentActive) async {
+    setState(() => _isTogglingParentActive = true);
+    final studentProv = context.read<StudentProvider>();
+    try {
+      await studentProv.setParentActive(parentUid, !currentActive);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(!currentActive ? 'Parent account enabled' : 'Parent account disabled'),
+          backgroundColor: !currentActive ? AppColors.presentGreen : AppColors.textDark,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to update parent status: $e'),
+          backgroundColor: AppColors.absentRed,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isTogglingParentActive = false);
+      }
     }
   }
 
@@ -416,6 +566,10 @@ class _AddEditStudentScreenState extends State<AddEditStudentScreen> {
                   ],
                 ),
               ),
+
+              if (isEdit && _currentStudent != null) ...[
+                _buildParentAccountCard(_currentStudent!),
+              ],
 
               if (isEdit) ...[
                 const SizedBox(height: 16),
@@ -679,6 +833,289 @@ class _AddEditStudentScreenState extends State<AddEditStudentScreen> {
           ],
         ),
       ],
+    );
+  }
+
+  Widget _buildParentAccountCard(Student student) {
+    final studentProv = context.watch<StudentProvider>();
+    final hasParent = student.parentId != null && student.parentId!.trim().isNotEmpty;
+
+    if (!hasParent) {
+      return Container(
+        margin: const EdgeInsets.only(top: 16),
+        padding: const EdgeInsets.all(18),
+        decoration: AppStyles.cardDecoration(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Parent App Login',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textDark,
+                  ),
+                ),
+                _buildStatusChip(
+                  label: 'Not created',
+                  bgColor: AppColors.surfaceMuted,
+                  textColor: AppColors.textSecondary,
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'This student does not have a linked parent login account yet.',
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _isCreatingParentAccount
+                    ? null
+                    : () => _handleCreateParentLogin(student),
+                icon: _isCreatingParentAccount
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.person_add_rounded, size: 18),
+                label: Text(
+                  _isCreatingParentAccount ? 'Creating Account...' : 'Create Parent Login',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryBlue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return StreamBuilder<AppUser?>(
+      stream: studentProv.streamParentAccount(student.parentId!),
+      builder: (context, snapshot) {
+        final parentUser = snapshot.data;
+        final bool isLoading = snapshot.connectionState == ConnectionState.waiting && parentUser == null;
+
+        if (isLoading) {
+          return Container(
+            margin: const EdgeInsets.only(top: 16),
+            padding: const EdgeInsets.all(18),
+            decoration: AppStyles.cardDecoration(),
+            child: const Center(
+              child: SizedBox(
+                height: 24,
+                width: 24,
+                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryBlue),
+              ),
+            ),
+          );
+        }
+
+        final bool isAccountActive = parentUser?.active ?? false;
+        final bool mustChangePassword = parentUser?.mustChangePassword ?? false;
+        final String loginId = parentUser?.username ?? '—';
+
+        // Derived Status:
+        // - Disabled: active == false
+        // - Waiting for first login: active == true && mustChangePassword == true
+        // - Active: active == true && mustChangePassword == false
+        final String statusLabel;
+        final Color statusBg;
+        final Color statusText;
+
+        if (!isAccountActive) {
+          statusLabel = 'Disabled';
+          statusBg = AppColors.absentLightBg;
+          statusText = AppColors.absentRed;
+        } else if (mustChangePassword) {
+          statusLabel = 'Waiting for first login';
+          statusBg = const Color(0xFFFEF3C7);
+          statusText = const Color(0xFFB45309);
+        } else {
+          statusLabel = 'Active';
+          statusBg = AppColors.presentLightBg;
+          statusText = AppColors.presentGreen;
+        }
+
+        return Container(
+          margin: const EdgeInsets.only(top: 16),
+          padding: const EdgeInsets.all(18),
+          decoration: AppStyles.cardDecoration(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Parent App Login',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textDark,
+                    ),
+                  ),
+                  _buildStatusChip(
+                    label: statusLabel,
+                    bgColor: statusBg,
+                    textColor: statusText,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              // Login ID row
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceMuted,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.borderLight),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.alternate_email_rounded, size: 18, color: AppColors.textSecondary),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Login ID',
+                            style: TextStyle(fontSize: 11, color: AppColors.textMuted, fontWeight: FontWeight.w600),
+                          ),
+                          Text(
+                            loginId,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textDark,
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.copy_rounded, size: 18, color: AppColors.primaryBlue),
+                      tooltip: 'Copy Login ID',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: loginId));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Login ID copied to clipboard'),
+                            duration: Duration(seconds: 2),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Action Buttons: Issue New Login and Enable/Disable Toggle
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _isReissuingParentLogin
+                          ? null
+                          : () => _handleIssueNewParentLogin(student),
+                      icon: _isReissuingParentLogin
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.refresh_rounded, size: 16),
+                      label: Text(
+                        _isReissuingParentLogin ? 'Issuing...' : 'Issue New Login',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primaryBlue,
+                        side: const BorderSide(color: AppColors.primaryBlue),
+                        padding: const EdgeInsets.symmetric(vertical: 11),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _isTogglingParentActive
+                          ? null
+                          : () => _handleToggleParentActive(student.parentId!, isAccountActive),
+                      icon: _isTogglingParentActive
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Icon(
+                              isAccountActive ? Icons.block_rounded : Icons.check_circle_outline_rounded,
+                              size: 16,
+                            ),
+                      label: Text(
+                        _isTogglingParentActive
+                            ? 'Updating...'
+                            : (isAccountActive ? 'Disable' : 'Enable'),
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: isAccountActive ? AppColors.absentRed : AppColors.presentGreen,
+                        side: BorderSide(
+                          color: isAccountActive ? AppColors.absentRed : AppColors.presentGreen,
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 11),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildStatusChip({
+    required String label,
+    required Color bgColor,
+    required Color textColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: textColor,
+        ),
+      ),
     );
   }
 }

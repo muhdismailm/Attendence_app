@@ -46,7 +46,9 @@ void main() async {
         ChangeNotifierProxyProvider<StudentProvider, AttendanceProvider>(
           create: (_) => AttendanceProvider(dbService),
           update: (_, studentProvider, attendanceProvider) {
-            return attendanceProvider!..updateStudentProvider(studentProvider);
+            final attProv = attendanceProvider!..updateStudentProvider(studentProvider);
+            studentProvider.updateAttendanceProvider(attProv);
+            return attProv;
           },
         ),
       ],
