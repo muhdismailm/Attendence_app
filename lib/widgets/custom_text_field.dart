@@ -75,10 +75,12 @@ class CustomTextField extends StatelessWidget {
             prefixIcon: prefixIcon != null
                 ? Icon(prefixIcon, size: 20, color: AppColors.textSecondary)
                 : null,
+            prefixIconConstraints: const BoxConstraints(minWidth: 42, minHeight: 42),
             suffixIcon: suffixIcon,
+            suffixIconConstraints: const BoxConstraints(minWidth: 42, minHeight: 42),
             filled: true,
             fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             enabledBorder: OutlineInputBorder(
               borderRadius: AppStyles.cardBorderRadius,
               borderSide: const BorderSide(color: AppColors.borderLight, width: 1.2),

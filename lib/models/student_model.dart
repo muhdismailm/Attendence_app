@@ -1,3 +1,5 @@
+import 'package:intl/intl.dart';
+
 class Student {
   final String id;
   final String name;
@@ -12,6 +14,10 @@ class Student {
   final String? secondaryPhone;
   final bool active;
   final String? tutorId;
+  final String? address;
+  final String? dob;
+  final String? admissionDate;
+  final String? skills;
 
   const Student({
     required this.id,
@@ -27,12 +33,36 @@ class Student {
     this.secondaryPhone,
     this.active = true,
     this.tutorId,
+    this.address,
+    this.dob,
+    this.admissionDate,
+    this.skills,
   });
 
   String get teamDisplayName => team == 'team1' ? 'Team 1' : 'Team 2';
   String get timingDisplayName => 'Morning & Evening';
   String get groupKey => team;
   String get groupDisplayName => '$teamDisplayName • Morning & Evening';
+
+  /// Calculates student age based on dob
+  int? get age {
+    if (dob == null || dob!.trim().isEmpty) return null;
+    DateTime? parsed;
+    try {
+      parsed = DateFormat('dd MMM yyyy').parse(dob!.trim());
+    } catch (_) {
+      try {
+        parsed = DateTime.parse(dob!.trim());
+      } catch (_) {}
+    }
+    if (parsed == null) return null;
+    final now = DateTime.now();
+    int calculated = now.year - parsed.year;
+    if (now.month < parsed.month || (now.month == parsed.month && now.day < parsed.day)) {
+      calculated--;
+    }
+    return calculated >= 0 ? calculated : null;
+  }
 
   Map<String, dynamic> toMap() {
     return {
@@ -49,6 +79,10 @@ class Student {
       'secondaryPhone': secondaryPhone,
       'active': active,
       'tutorId': tutorId,
+      'address': address,
+      'dob': dob,
+      'admissionDate': admissionDate,
+      'skills': skills,
     };
   }
 
@@ -67,6 +101,10 @@ class Student {
       secondaryPhone: map['secondaryPhone'],
       active: map['active'] ?? true,
       tutorId: map['tutorId'],
+      address: map['address'],
+      dob: map['dob'] ?? map['dateOfBirth'],
+      admissionDate: map['admissionDate'],
+      skills: map['skills'],
     );
   }
 
@@ -84,6 +122,10 @@ class Student {
     String? secondaryPhone,
     bool? active,
     String? tutorId,
+    String? address,
+    String? dob,
+    String? admissionDate,
+    String? skills,
   }) {
     return Student(
       id: id ?? this.id,
@@ -99,6 +141,10 @@ class Student {
       secondaryPhone: secondaryPhone ?? this.secondaryPhone,
       active: active ?? this.active,
       tutorId: tutorId ?? this.tutorId,
+      address: address ?? this.address,
+      dob: dob ?? this.dob,
+      admissionDate: admissionDate ?? this.admissionDate,
+      skills: skills ?? this.skills,
     );
   }
 }

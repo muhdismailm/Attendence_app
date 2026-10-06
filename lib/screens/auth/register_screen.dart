@@ -122,7 +122,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Join Attendance App',
+                    'Join Hazri',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 22,

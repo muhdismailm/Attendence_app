@@ -46,7 +46,8 @@ void main() async {
         ChangeNotifierProxyProvider<StudentProvider, AttendanceProvider>(
           create: (_) => AttendanceProvider(dbService),
           update: (_, studentProvider, attendanceProvider) {
-            final attProv = attendanceProvider!..updateStudentProvider(studentProvider);
+            final attProv = attendanceProvider!
+              ..updateStudentProvider(studentProvider);
             studentProvider.updateAttendanceProvider(attProv);
             return attProv;
           },
@@ -63,7 +64,7 @@ class AttendanceApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Attendance Management',
+      title: 'Hazri',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       home: const AuthGate(),

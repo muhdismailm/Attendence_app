@@ -98,7 +98,9 @@ class StudentProvider extends ChangeNotifier {
         final rollMatch = student.rollNumber.toLowerCase().contains(query);
         final parentMatch = student.parentName.toLowerCase().contains(query);
         final placeMatch = student.place != null && student.place!.toLowerCase().contains(query);
-        if (!nameMatch && !rollMatch && !parentMatch && !placeMatch) return false;
+        final skillsMatch = student.skills != null && student.skills!.toLowerCase().contains(query);
+        final addressMatch = student.address != null && student.address!.toLowerCase().contains(query);
+        if (!nameMatch && !rollMatch && !parentMatch && !placeMatch && !skillsMatch && !addressMatch) return false;
       }
 
       return true;
